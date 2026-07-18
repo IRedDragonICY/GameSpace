@@ -16,14 +16,20 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="io.chaldeaprjkt.gamespace"
+    package="com.ireddragonicy.gamespace"
     android:sharedUserId="android.uid.system">
 
     <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
     <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
     <uses-permission android:name="android.permission.MANAGE_GAME_MODE" />
+    <uses-permission android:name="android.permission.STATUS_BAR_SERVICE" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_DEVICE_CONFIG" />
+    <!-- AFME layer FPS stats arrive as AFME-STATS logcat lines: the layer runs
+         inside the game (untrusted_app), which sepolicy forbids from setting
+         system properties, so logcat is the only usable export channel. -->
+    <uses-permission android:name="android.permission.READ_LOGS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="com.android.systemui.permission.SCREEN_RECORDING" />
@@ -48,6 +54,9 @@
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_ROUTING" />
+    <uses-permission android:name="android.permission.CONTROL_DISPLAY_COLOR_TRANSFORMS" />
+    <!-- ThermalController: IActivityManager.registerProcessObserver for per-app profiles -->
+    <uses-permission android:name="android.permission.SET_ACTIVITY_WATCHER" />
 
     <application
         android:name=".GameSpace"
@@ -56,16 +65,31 @@
         android:persistent="true"
         android:supportsRtl="true"
         android:theme="@style/GameSpaceTheme"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:isGame="true"
+        android:appCategory="game">
         
+        <!-- GAME SPACE hub — Game Turbo-style game library, the launcher entry -->
         <activity
-            android:name=".settings.SettingsActivity"
-            android:exported="true">
+            android:name=".hub.GameHubActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Modern ROG settings (primary) — legacy SettingsActivity remains
+             only as the quick-start-apps editor -->
+        <activity
+            android:name=".hub.HubSettingsActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
+        <activity
+            android:name=".settings.SettingsActivity"
+            android:exported="true" />
 
         <activity
             android:name=".settings.PerAppSettingsActivity"
@@ -76,6 +100,16 @@
             android:excludeFromRecents="true"
             android:exported="false"
             android:label="@string/app_selector_label" />
+
+        <activity
+            android:name=".settings.fpsstats.FpsStatsActivity"
+            android:exported="false"
+            android:theme="@style/GameSpaceTheme" />
+
+        <activity
+            android:name=".settings.fpsstats.FpsStatsDetailActivity"
+            android:exported="false"
+            android:theme="@style/GameSpaceTheme" />
 
         <service
             android:name=".gamebar.GameSpaceService"

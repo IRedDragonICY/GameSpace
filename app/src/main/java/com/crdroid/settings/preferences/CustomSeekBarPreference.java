@@ -32,7 +32,7 @@ import androidx.core.view.ViewCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
-import io.chaldeaprjkt.gamespace.R;
+import com.ireddragonicy.gamespace.R;
 import com.android.settingslib.widget.SliderPreference;
 
 import com.google.android.material.slider.LabelFormatter;

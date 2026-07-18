@@ -1,0 +1,167 @@
+/*
+ * Copyright (C) 2026 crDroid Android Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.ireddragonicy.gamespace.settings
+
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.os.SystemProperties
+import android.os.Vibrator
+import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.preference.Preference
+import androidx.preference.PreferenceCategory
+import androidx.preference.SwitchPreferenceCompat
+import androidx.preference.ListPreference
+
+import com.android.settingslib.widget.SettingsBasePreferenceFragment
+
+import dagger.hilt.android.AndroidEntryPoint
+
+import com.ireddragonicy.gamespace.R
+import com.ireddragonicy.gamespace.data.GameOptimizationManager
+import com.ireddragonicy.gamespace.preferences.AppListPreferences
+import com.ireddragonicy.gamespace.preferences.QuickStartAppPreference
+import com.ireddragonicy.gamespace.preferences.QuickStartAppPreferenceDialogFragment
+import com.ireddragonicy.gamespace.preferences.appselector.AppSelectorActivity
+
+import javax.inject.Inject
+
+@AndroidEntryPoint(SettingsBasePreferenceFragment::class)
+class SettingsFragment : Hilt_SettingsFragment(),
+    QuickStartAppPreferenceDialogFragment.QuickStartAppListener,
+    Preference.OnPreferenceChangeListener {
+
+    private var apps: AppListPreferences? = null
+
+    @Inject
+    lateinit var gameOptimization: GameOptimizationManager
+
+    private val selectorResult =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            apps?.useSelectorResult(it)
+        }
+
+    private val perAppResult =
+        registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            apps?.usePerAppResult(it)
+        }
+
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        setPreferencesFromResource(R.xml.root_preferences, rootKey)
+        updatePreferences()
+    }
+
+    private fun hasVibrator(): Boolean {
+        val vibrator = context?.getSystemService(Vibrator::class.java)
+        return vibrator?.hasVibrator() == true
+    }
+
+    private fun updatePreferences() {
+        val isBypassSupported =
+            Build.MANUFACTURER.equals("Google", ignoreCase = true) ||
+            SystemProperties.getBoolean("persist.sys.battery_bypass_supported", false)
+
+        if (!isBypassSupported) {
+            findPreference<PreferenceCategory>("in_game_preferences")
+                ?.removePreference(findPreference("bypass_charge_enabled")!!)
+        }
+
+        if (!hasVibrator()) {
+            findPreference<PreferenceCategory>("in_game_preferences")
+                ?.removePreference(findPreference("gamespace_pulse_bass_haptics_disabled")!!)
+        }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        apps = findPreference("gamespace_game_list")
+        apps?.onRegisteredAppClick { pkg ->
+            perAppResult.launch(
+                Intent(context, PerAppSettingsActivity::class.java).apply {
+                    putExtra(PerAppSettingsActivity.EXTRA_PACKAGE, pkg)
+                }
+            )
+        }
+
+        findPreference<Preference>(AppListPreferences.KEY_ADD_GAME)
+            ?.setOnPreferenceClickListener {
+                selectorResult.launch(Intent(context, AppSelectorActivity::class.java))
+                true
+            }
+
+        // Game Optimization preferences
+        findPreference<SwitchPreferenceCompat>("game_memory_management")?.apply {
+            isChecked = gameOptimization.isMemoryManagementEnabled
+            onPreferenceChangeListener = this@SettingsFragment
+        }
+
+        findPreference<SwitchPreferenceCompat>("game_cache_management")?.apply {
+            isChecked = gameOptimization.isCacheManagementEnabled
+            onPreferenceChangeListener = this@SettingsFragment
+        }
+
+        // FPS Stats — open session list
+        findPreference<Preference>("fps_stats")?.setOnPreferenceClickListener {
+            startActivity(Intent(requireContext(),
+                com.ireddragonicy.gamespace.settings.fpsstats.FpsStatsActivity::class.java))
+            true
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        apps?.updateAppList()
+    }
+
+    override fun onDisplayPreferenceDialog(preference: Preference) {
+        if (preference is QuickStartAppPreference) {
+            val dialogFragment =
+                QuickStartAppPreferenceDialogFragment.newInstance(preference.key)
+            dialogFragment.setListener(this)
+            dialogFragment.setTargetFragment(this, 0)
+            dialogFragment.show(parentFragmentManager, "QuickStartAppPreferenceDialogFragment")
+        } else {
+            super.onDisplayPreferenceDialog(preference)
+        }
+    }
+
+    override fun getSavedQuickStartApps(): String {
+        val prefs = preferenceManager.sharedPreferences ?: return ""
+        return prefs.getString(com.ireddragonicy.gamespace.data.AppSettings.KEY_QUICK_START_APPS, "") ?: ""
+    }
+
+    override fun saveQuickStartApps(apps: String) { /* no-op */ }
+
+    override fun onPreferenceChange(preference: Preference, newValue: Any?): Boolean {
+        when (preference.key) {
+            "game_memory_management" -> {
+                gameOptimization.isMemoryManagementEnabled = newValue as Boolean
+                return true
+            }
+            "game_cache_management" -> {
+                gameOptimization.isCacheManagementEnabled = newValue as Boolean
+                return true
+            }
+        }
+        return false
+    }
+}

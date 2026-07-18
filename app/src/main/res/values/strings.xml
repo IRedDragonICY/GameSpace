@@ -44,6 +44,18 @@
     <string name="per_app_mode_title">Preferred Mode</string>
     <string name="per_app_angle_title">Graphics driver</string>
     <string name="per_app_unregister">Remove %1$s from library</string>
+    <string name="per_app_thermal_title">Thermal Profile</string>
+    <string name="per_app_thermal_summary">Control CPU/GPU thermal behavior for this game</string>
+    <string name="per_app_gpu_composition_title">GPU screen composition</string>
+    <string name="per_app_gpu_composition_summary">Force GPU rendering for this game (reduces HW overlay latency)</string>
+    <string name="per_app_resolution_title">Game Resolution</string>
+    <string name="per_app_resolution_summary">Reduce rendering resolution to improve performance</string>
+    <string name="per_app_afme_title">Frame Generation (AFME)</string>
+    <string name="per_app_afme_summary">GPU-accelerated frame extrapolation using Adreno hardware</string>
+    <string name="per_app_vrs_title">Variable Rate Shading</string>
+    <string name="per_app_vrs_summary">Reduce GPU shading on screen edges for better performance</string>
+    <string name="per_app_color_enhance_title">Game Color Enhance</string>
+    <string name="per_app_color_enhance_summary">Boost saturation, contrast and HDR quality for gaming</string>
 
     <!-- Disable ADB debugging -->
     <string name="adb_disabled_title">Disable USB debugging</string>
@@ -94,7 +106,48 @@
     <string name="available_tiles">Available Tiles</string>
     <string name="drag_tiles_here">Drag tiles here</string>
     <string name="all_tiles_added">All tiles added</string>
+    <string name="quick_toggles_section">Quick Toggles</string>
+    <string name="tool_grid_section">Tool Grid</string>
+    <string name="add_to_quick_toggles">Add to Quick Toggles</string>
+    <string name="add_to_tool_grid">Add to Tool Grid</string>
+    <string name="move_to_quick_toggles">Move to Quick Toggles</string>
+    <string name="move_to_tool_grid">Move to Tool Grid</string>
+    <string name="no_quick_toggles">Tap + from available tiles</string>
+    <string name="no_tool_tiles">Tap + from available tiles</string>
     <string name="fps_stats">min %1$d | avg %2$d | max %3$d</string>
+    <string name="fps_stats_game">game: min %1$d | avg %2$d | max %3$d</string>
+    <string name="fps_stats_afme">Game %1$d | Gen %2$d | Total %3$d</string>
+
+    <!-- AFME multiplier options -->
+    <string name="afme_off">Off</string>
+    <string name="afme_2x">2× Frame Generation</string>
+    <string name="afme_3x">3× Frame Generation</string>
+    <string name="afme_4x">4× Frame Generation</string>
+
+    <!-- AFME Factor control -->
+    <string name="per_app_afme_factor_title">Extrapolation Strength</string>
+    <string name="per_app_afme_factor_summary">Controls how far the GPU predicts each frame</string>
+
+    <!-- Graphics Enhancement (SGSR / MobFGSR) -->
+    <string name="per_app_sgsr_title">Graphics Enhancement</string>
+    <string name="per_app_sgsr_summary">Sharpening, super resolution, and motion interpolation</string>
+    <string name="sgsr_off">Off</string>
+    <string name="sgsr_1">SGSR1 — Adaptive Sharpening</string>
+    <string name="sgsr_2">SGSR2 — Temporal Upscale (Quality)</string>
+    <string name="sgsr_3">MobFGSR — Motion Interpolation (Best)</string>
+
+    <!-- Smooth Motion -->
+    <string name="per_app_smooth_motion_title">Smooth Motion</string>
+    <string name="per_app_smooth_motion_summary">Enable HWC smooth motion interpolation and frame pacing</string>
+
+    <!-- Sidebar app management -->
+    <string name="sidebar_add_app">Add app</string>
+    <string name="sidebar_remove_app">Remove</string>
+    <string name="sidebar_search_apps">Search apps…</string>
+    <string name="sidebar_edit">Edit sidebar</string>
+    <string name="sidebar_done">Done</string>
+    <string name="sidebar_empty">Tap + to add apps</string>
+    <string name="back">Back</string>
 
     <!-- Tile Labels -->
     <string name="tile_danmaku">Danmaku</string>
@@ -137,7 +190,18 @@
     <string name="tile_profiles">Profiles</string>
     <string name="tile_smart_pixels">Smart Pixels</string>
     <string name="tile_screen_record">Screen Record</string>
+    <string name="tile_game_record">Rec</string>
     <string name="tile_screenshot">Screenshot</string>
+    <string name="tile_lock_gesture">Lock Gesture</string>
+    <string name="tile_afme">AFME</string>
+    <string name="tile_map_controls">Map Controls</string>
+
+    <!-- Touch Feature tiles (Xiaomi Touch HAL) -->
+    <string name="tile_htsr">HTSR</string>
+    <string name="tile_super_touch">Super Touch</string>
+    <string name="tile_first_frame_boost">Touch Boost</string>
+    <string name="tile_hot_area">Hot Area</string>
+    <string name="tile_game_vibration">Game Vibration</string>
 
     <!-- Icon Idle Opacity -->
     <string name="icon_idle_opacity_title">Icon idle opacity</string>
@@ -176,4 +240,72 @@
     <!-- Pulse bass haptics -->
     <string name="pulse_bass_haptics_disabled_title">Disable pulse bass haptics</string>
     <string name="pulse_bass_haptics_disabled_summary">Automatically disable pulse bass haptics if enabled</string>
+
+    <!-- Panel Color Theme -->
+    <string name="panel_color_title">Panel accent color</string>
+    <string name="panel_color_summary">Change the accent color of the game overlay panel</string>
+    <string name="panel_color_material_you">Material You (wallpaper)</string>
+    <string name="panel_color_cyan">Cyan (Classic)</string>
+    <string name="panel_color_blue">Electric Blue</string>
+    <string name="panel_color_green">Emerald Green</string>
+    <string name="panel_color_orange">Sunset Orange</string>
+    <string name="panel_color_purple">Royal Purple</string>
+    <string name="panel_color_red">Cherry Red</string>
+    <string name="panel_color_yellow">Golden Yellow</string>
+    <string name="panel_color_white">Arctic White</string>
+
+    <!-- Touch Tuning -->
+    <string name="touch_tuning_category_title">Touch tuning (game mode)</string>
+    <string name="super_report_rate_title">Super report rate</string>
+    <string name="super_report_rate_summary">480 Hz super-resolution reporting (game mode is 240 Hz)</string>
+    <string name="expert_mode_title">Expert mode</string>
+    <string name="expert_mode_summary">Use a built-in tuning preset instead of the manual values</string>
+    <string name="expert_preset_title">Expert preset</string>
+    <string name="tune_touch_up_threshold_title">Touch-up threshold</string>
+    <string name="tune_jitter_tolerance_title">Jitter tolerance</string>
+    <string name="tune_aim_sensitivity_title">Aim sensitivity</string>
+    <string name="tune_tap_stability_title">Tap stability</string>
+    <string name="tune_edge_filter_title">Edge filter</string>
+    
+    <string name="touch_test_title">Touch sample rate test</string>
+    <string name="touch_test_summary">Test real-time touch sampling rate</string>
+    <string name="touch_test_game_mode">Game mode</string>
+    <string name="touch_test_super_report">Super report</string>
+
+    <!-- In-panel Tuner (tabbed page) -->
+    <string name="tuner_title">TUNER</string>
+    <string name="tuner_tab_perf">PERF</string>
+    <string name="tuner_tab_touch">TOUCH</string>
+    <string name="tuner_tab_frame">FRAME</string>
+    <string name="tuner_tab_gfx">GFX</string>
+    <string name="tuner_no_active_game">No active game — start a session to edit per-app settings</string>
+    <string name="tuner_choice_off">Off</string>
+    <string name="tuner_choice_auto">Auto</string>
+
+    <string name="tuner_touch_tester_hint">Drag inside the pad above to measure live touch sampling rate</string>
+    <string name="tuner_touch_section_general">General</string>
+    <string name="tuner_touch_htsr">High touch sampling rate</string>
+    <string name="tuner_touch_super_touch">Super touch</string>
+    <string name="tuner_touch_super_touch_level">Super touch level</string>
+    <string name="tuner_touch_first_frame_boost">First frame boost</string>
+    <string name="tuner_touch_game_vibration">Game vibration</string>
+    <string name="tuner_touch_hot_area">Hot area</string>
+    <string name="tuner_touch_section_per_app">Per-game tuning</string>
+
+    <string name="tuner_frame_section_afme">AFME frame generation</string>
+    <string name="tuner_frame_afme_multiplier">Frame generation</string>
+    <string name="tuner_frame_afme_factor">Extrapolation factor</string>
+    <string name="tuner_frame_section_pacing">Frame pacing</string>
+    <string name="tuner_frame_smooth_motion">Smooth motion</string>
+
+    <string name="tuner_gfx_section_upscale">Graphics enhancement</string>
+    <string name="tuner_gfx_enhancement">Upscaler</string>
+    <string name="tuner_gfx_sgsr1">SGSR1</string>
+    <string name="tuner_gfx_sgsr2">SGSR2</string>
+    <string name="tuner_gfx_mobfgsr">MobFGSR</string>
+    <string name="tuner_gfx_section_rendering">Rendering</string>
+    <string name="tuner_gfx_vrs">Variable rate shading</string>
+    <string name="tuner_gfx_resolution">Resolution scale</string>
+    <string name="tuner_gfx_section_color">Color</string>
+    <string name="tuner_gfx_color_enhance">Color enhance</string>
  </resources>

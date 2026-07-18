@@ -24,17 +24,105 @@
         app:allowDividerBelow="false" />
 
     <ListPreference
-        android:defaultValue="1"
-        android:key="per_app_preferred_mode"
+        android:key="per_app_thermal_profile"
         android:persistent="false"
         android:summary="%s"
-        android:title="@string/per_app_mode_title" />
+        android:title="@string/per_app_thermal_title" />
+
+    <SwitchPreference
+        android:key="per_app_gpu_composition"
+        android:persistent="false"
+        android:title="@string/per_app_gpu_composition_title"
+        android:summary="@string/per_app_gpu_composition_summary" />
+
+    <PreferenceCategory android:title="@string/touch_tuning_category_title">
+        <SwitchPreference
+            android:key="per_app_touch_super_report"
+            android:persistent="false"
+            android:title="@string/super_report_rate_title"
+            android:summary="@string/super_report_rate_summary" />
+
+        <SwitchPreference
+            android:key="per_app_touch_expert_mode"
+            android:persistent="false"
+            android:title="@string/expert_mode_title"
+            android:summary="@string/expert_mode_summary" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_expert_preset"
+            android:persistent="false"
+            android:title="@string/expert_preset_title" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_threshold"
+            android:persistent="false"
+            android:title="@string/tune_touch_up_threshold_title" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_tolerance"
+            android:persistent="false"
+            android:title="@string/tune_jitter_tolerance_title" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_aim_sens"
+            android:persistent="false"
+            android:title="@string/tune_aim_sensitivity_title" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_tap_stab"
+            android:persistent="false"
+            android:title="@string/tune_tap_stability_title" />
+
+        <com.android.settingslib.widget.SliderPreference
+            android:key="per_app_touch_edge_filter"
+            android:persistent="false"
+            android:title="@string/tune_edge_filter_title" />
+    </PreferenceCategory>
+
+    <ListPreference
+        android:key="per_app_resolution"
+        android:persistent="false"
+        android:summary="%s"
+        android:title="@string/per_app_resolution_title" />
 
     <ListPreference
         android:key="per_app_angle_driver"
         android:persistent="false"
         android:summary="%s"
         android:title="@string/per_app_angle_title" />
+
+    <ListPreference
+        android:key="per_app_afme"
+        android:persistent="false"
+        android:title="@string/per_app_afme_title" />
+
+    <ListPreference
+        android:key="per_app_afme_factor"
+        android:persistent="false"
+        android:title="@string/per_app_afme_factor_title"
+        android:dependency="per_app_afme" />
+
+    <ListPreference
+        android:key="per_app_sgsr"
+        android:persistent="false"
+        android:title="@string/per_app_sgsr_title" />
+
+    <SwitchPreference
+        android:key="per_app_smooth_motion"
+        android:persistent="false"
+        android:title="@string/per_app_smooth_motion_title"
+        android:summary="@string/per_app_smooth_motion_summary" />
+
+    <ListPreference
+        android:key="per_app_vrs"
+        android:persistent="false"
+        android:title="@string/per_app_vrs_title" />
+
+    <SwitchPreference
+        android:key="per_app_color_enhance"
+        android:persistent="false"
+        android:title="@string/per_app_color_enhance_title"
+        android:summary="@string/per_app_color_enhance_summary" />
 
     <Preference
         android:icon="@drawable/ic_remove"

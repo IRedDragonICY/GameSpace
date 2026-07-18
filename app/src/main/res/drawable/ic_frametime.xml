@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <!-- Material Symbols: timeline (rounded, filled) — frametime graph -->
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M160,720q-33,0 -56.5,-23.5T80,640q0,-33 23.5,-56.5T160,560q8,0 15,1.5t14,4.5l122,-122q-3,-7 -4.5,-14t-1.5,-15q0,-33 23.5,-56.5T385,335q33,0 56.5,23.5T465,415q0,8 -1.5,15t-4.5,14l82,82q7,-3 14,-4.5t15,-1.5q8,0 15,1.5t14,4.5l162,-162q-3,-7 -4.5,-14t-1.5,-15q0,-33 23.5,-56.5T830,255q33,0 56.5,23.5T910,335q0,33 -23.5,56.5T830,415q-8,0 -15,-1.5t-14,-4.5L639,571q3,7 4.5,14t1.5,15q0,33 -23.5,56.5T565,680q-33,0 -56.5,-23.5T485,600q0,-8 1.5,-15t4.5,-14l-82,-82q-7,3 -14,4.5t-15,1.5q-8,0 -15,-1.5t-14,-4.5L244,611q3,7 4.5,14t1.5,15q0,33 -23.5,56.5T170,720h-10Z"/>
+</vector>

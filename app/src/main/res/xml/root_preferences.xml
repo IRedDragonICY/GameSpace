@@ -40,11 +40,25 @@
             android:summary="@string/game_cache_management_summary"
             android:defaultValue="true" />
 
+        <Preference
+            android:key="fps_stats"
+            android:title="FPS Stats"
+            android:summary="View recorded performance sessions"
+            android:icon="@drawable/ic_speed" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
         android:key="in_game_preferences"
         android:title="@string/in_game_preferences_title">
+
+        <ListPreference
+            android:key="gamespace_panel_color_mode"
+            android:title="@string/panel_color_title"
+            android:summary="%s"
+            android:entries="@array/panel_color_entries"
+            android:entryValues="@array/panel_color_values"
+            android:defaultValue="0" />
 
         <SwitchPreferenceCompat
             android:key="gamespace_auto_brightness_disabled"
@@ -129,14 +143,14 @@
     <PreferenceCategory
         android:key="quick_start_apps_category">
 
-        <io.chaldeaprjkt.gamespace.preferences.QuickStartAppPreference
+        <com.ireddragonicy.gamespace.preferences.QuickStartAppPreference
             android:key="quick_start_apps"
             android:title="@string/quick_start_apps_title"
             android:summary="@string/quick_start_apps_summary" />
 
     </PreferenceCategory>
 
-    <io.chaldeaprjkt.gamespace.preferences.AppListPreferences
+    <com.ireddragonicy.gamespace.preferences.AppListPreferences
         android:key="gamespace_game_list"
         android:title="@string/game_list_title" />
 

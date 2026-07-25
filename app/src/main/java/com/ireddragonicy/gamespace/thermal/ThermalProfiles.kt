@@ -28,6 +28,7 @@ object ThermalProfiles {
     /** Settings.System keys — shared contract with SystemUI QS tiles. */
     const val KEY_THERMAL_PROFILE = "mithermal_thermal_profile"
     const val KEY_TEMP_LIMIT = "mithermal_temp_limit"
+    const val KEY_TEMP_OFFSET = "mithermal_temp_offset" // Feature B, signed deci-°C
     const val KEY_CHARGE_MAX_WATT = "mithermal_charge_max_watt"
     const val KEY_CHARGE_MIN_WATT = "mithermal_charge_min_watt"
     const val KEY_APP_PROFILES = "mithermal_app_profiles"
@@ -46,14 +47,29 @@ object ThermalProfiles {
     const val PROP_CUSTOM_COUNT = "persist.sys.mithermal.custom.n"
     const val PROP_CUSTOM_CHUNK_PREFIX = "persist.sys.mithermal.custom."
 
+    /** Aggressiveness knob (Feature B): signed deci-°C headroom. Positive = run
+     *  hotter before throttling. Global; read on every daemon config reload. */
+    const val PROP_TEMP_OFFSET = "persist.sys.mithermal.temp_offset"
+
+    /** Extended custom-profile side channels (Features A/C/D), re-read on a
+     *  custom-seq bump. CSV formats:
+     *    gpu: "trig,clr,freqHz;…"   mon: "boost,hotplug,bl,blcap"   sic: "target,maxfcc" */
+    const val PROP_CUSTOM_GPU = "persist.sys.mithermal.custom.gpu"
+    const val PROP_CUSTOM_MON = "persist.sys.mithermal.custom.mon"
+    const val PROP_CUSTOM_SIC = "persist.sys.mithermal.custom.sic"
+
     /** Property values are capped at 92 bytes — chunk payloads below that. */
     const val PROP_CHUNK_SIZE = 88
     const val PROP_CHUNK_MAX = 64
+
+    /** Max GPU throttle levels a custom profile may define (matches the daemon). */
+    const val CUSTOM_GPU_MAX = 4
 
     /** Profile indices >= this reference user-created custom profiles. */
     const val CUSTOM_PROFILE_BASE = 1000
 
     const val PROFILE_AUTO = 0
+    const val PROFILE_PERFORMANCE = 2
     const val PROFILE_BATTERY_SAVER = 16
 
     /** index → sconfig; -1 = Auto (don't override), -2 = Battery Saver. */

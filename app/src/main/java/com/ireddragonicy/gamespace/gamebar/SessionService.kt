@@ -47,6 +47,10 @@ import com.ireddragonicy.gamespace.utils.ScreenUtils
 import com.ireddragonicy.gamespace.utils.isServiceRunning
 import com.ireddragonicy.gamespace.data.fpsstats.FpsStatsCollector
 import com.ireddragonicy.gamespace.data.fpsstats.FpsStatsRepository
+import com.ireddragonicy.gamespace.data.ActiveGameHolder
+import com.ireddragonicy.gamespace.data.PerAppSettingStore
+import com.ireddragonicy.gamespace.display.DisplayColorManager
+
 import kotlinx.coroutines.*
 import javax.inject.Inject
 
@@ -66,6 +70,12 @@ class SessionService : Hilt_SessionService() {
     @Inject lateinit var fpsStatsRepository: FpsStatsRepository
     @Inject lateinit var perfTuner: PerfTuner
     @Inject lateinit var gson: Gson
+    @Inject lateinit var monitorSettings: com.ireddragonicy.gamespace.gamebar.monitor.MonitorSettings
+    @Inject lateinit var monitorTelemetry: com.ireddragonicy.gamespace.gamebar.monitor.MonitorTelemetry
+    @Inject lateinit var telemetryBus: com.ireddragonicy.gamespace.telemetry.TelemetryBus
+
+    private val displayColorManager by lazy { DisplayColorManager.get(this) }
+    private val perAppStore by lazy { PerAppSettingStore(this) }
 
     private var currentPackage: String? = null
     private lateinit var gameManager: GameManager
@@ -73,6 +83,7 @@ class SessionService : Hilt_SessionService() {
     private lateinit var mapperController: MapperController
     private lateinit var platform: AxPlatformClient
     private lateinit var touchModeManager: GameTouchModeManager
+    private lateinit var monitorOverlayManager: com.ireddragonicy.gamespace.gamebar.monitor.MonitorOverlayManager
 
     private var dndEnabledByUs = false
     private var previousDndFilter = NotificationManager.INTERRUPTION_FILTER_ALL
@@ -128,6 +139,12 @@ class SessionService : Hilt_SessionService() {
         val windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val mainHandler = Handler(Looper.getMainLooper())
 
+        monitorOverlayManager = com.ireddragonicy.gamespace.gamebar.monitor.MonitorOverlayManager(
+            this, windowManager, monitorSettings, monitorTelemetry, fpsInteractor
+        )
+        tileRepository.monitorSettings = monitorSettings
+        tileRepository.monitorOverlayManager = monitorOverlayManager
+
         mapperController = MapperController(
             context = this,
             wm = windowManager,
@@ -153,6 +170,10 @@ class SessionService : Hilt_SessionService() {
 
         // Wire FPS Stats recording
         setupFpsStatsRecording()
+
+        tileRepository.bringSidebarToFront = {
+            sidebar.bringToFront()
+        }
     }
 
     private val fpsStatsScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -230,6 +251,7 @@ class SessionService : Hilt_SessionService() {
         
         Log.i(TAG, "Starting game session for $packageName")
         currentPackage = packageName
+        ActiveGameHolder.currentPackage = packageName
         tileRepository.currentGamePackage = packageName
         tileRepository.sessionStartTimeMs = android.os.SystemClock.elapsedRealtime()
         
@@ -254,62 +276,14 @@ class SessionService : Hilt_SessionService() {
         }
 
         sidebar.onGameStart(packageName)
+        telemetryBus.start()
+        monitorOverlayManager.start()
 
-        // Apply saved per-game color mode (Game Turbo Display Style)
-        // Uses AOSP ColorDisplayService APIs:
-        //   setColorMode() = COLOR_MODE_NATURAL(0) / BOOSTED(1) / SATURATED(2) / AUTOMATIC(3)
-        //   setSaturationLevel() = 0 (grayscale) to 100 (full saturation)
-        try {
-            val colorDisplayManager = getSystemService(
-                android.hardware.display.ColorDisplayManager::class.java
-            )
-            if (colorDisplayManager != null) {
-                // Save original color mode for restoration
-                savedColorMode = colorDisplayManager.colorMode
-                savedSaturation = -1  // -1 = not modified
-
-                val savedMode = android.provider.Settings.System.getIntForUser(
-                    contentResolver,
-                    "game_color_mode_${packageName}",
-                    0,
-                    UserHandle.USER_CURRENT
-                )
-                if (savedMode > 0) {
-                    when (savedMode) {
-                        1 -> {  // Vivid — Saturated mode (more vivid rendering)
-                            colorDisplayManager.setColorMode(
-                                android.hardware.display.ColorDisplayManager.COLOR_MODE_SATURATED
-                            )
-                        }
-                        2 -> {  // Bright — Boosted mode (enhanced color)
-                            colorDisplayManager.setColorMode(
-                                android.hardware.display.ColorDisplayManager.COLOR_MODE_BOOSTED
-                            )
-                        }
-                        3 -> {  // Vibrant — Saturated + high saturation
-                            colorDisplayManager.setColorMode(
-                                android.hardware.display.ColorDisplayManager.COLOR_MODE_SATURATED
-                            )
-                        }
-                        4 -> {  // HDR — Saturated mode (for HDR content)
-                            colorDisplayManager.setColorMode(
-                                android.hardware.display.ColorDisplayManager.COLOR_MODE_SATURATED
-                            )
-                        }
-                    }
-                    Log.i(TAG, "Color mode applied: mode=$savedMode for $packageName")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to apply color mode", e)
-        }
+        // Unified display color mode — single owner
+        displayColorManager.applyForGame(perAppStore.displayStyle(packageName))
 
         callListener.init()
     }
-
-    // Saved display state for restoration
-    private var savedColorMode: Int = -1
-    private var savedSaturation: Int = -1
 
     private fun stopGameSession() {
         Log.i(TAG, "Stopping game session")
@@ -326,6 +300,8 @@ class SessionService : Hilt_SessionService() {
         }
 
         sidebar.onGameLeave()
+        telemetryBus.stop()
+        monitorOverlayManager.stop()
         touchModeManager.onGameStop()
         perfTuner.restoreDefaults()
         tileRepository.networkPingMonitor.stop()
@@ -334,20 +310,8 @@ class SessionService : Hilt_SessionService() {
         callListener.destroy()
         restoreAutoDnd()
 
-        // Restore original color mode
-        try {
-            val colorDisplayManager = getSystemService(
-                android.hardware.display.ColorDisplayManager::class.java
-            )
-            if (colorDisplayManager != null && savedColorMode >= 0) {
-                colorDisplayManager.setColorMode(savedColorMode)
-                Log.i(TAG, "Color mode restored to $savedColorMode")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to restore color mode", e)
-        }
-        savedColorMode = -1
-        savedSaturation = -1
+        displayColorManager.restore()
+        ActiveGameHolder.currentPackage = null
 
         currentPackage = null
         tileRepository.currentGamePackage = null

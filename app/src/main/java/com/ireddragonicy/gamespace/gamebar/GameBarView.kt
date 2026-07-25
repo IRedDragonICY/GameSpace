@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -150,7 +151,8 @@ private fun PillTab(
     onTap: () -> Unit,
 ) {
     if (showFps) {
-        val cpuThrottled = rememberCpuThrottle()
+        val thermalReduced = rememberTelemetry().thermalHeadroomReduced
+        
         Box(
             modifier = Modifier
                 .size(FPS_CIRCLE_SIZE_DP.dp)
@@ -171,7 +173,7 @@ private fun PillTab(
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                 )
-                if (cpuThrottled.value) {
+                if (thermalReduced) {
                     Text(
                         text = "THR",
                         color = Color(0xFFFF9800),

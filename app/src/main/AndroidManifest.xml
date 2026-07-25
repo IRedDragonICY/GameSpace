@@ -65,9 +65,7 @@
         android:persistent="true"
         android:supportsRtl="true"
         android:theme="@style/GameSpaceTheme"
-        android:enableOnBackInvokedCallback="true"
-        android:isGame="true"
-        android:appCategory="game">
+        android:enableOnBackInvokedCallback="true">
         
         <!-- GAME SPACE hub — Game Turbo-style game library, the launcher entry -->
         <activity
@@ -80,16 +78,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Modern ROG settings (primary) — legacy SettingsActivity remains
-             only as the quick-start-apps editor -->
+        <!-- Game Space Settings -->
         <activity
             android:name=".hub.HubSettingsActivity"
             android:exported="false"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
-
-        <activity
-            android:name=".settings.SettingsActivity"
-            android:exported="true" />
 
         <activity
             android:name=".settings.PerAppSettingsActivity"
@@ -109,6 +102,22 @@
         <activity
             android:name=".settings.fpsstats.FpsStatsDetailActivity"
             android:exported="false"
+            android:theme="@style/GameSpaceTheme" />
+
+        <activity
+            android:name=".settings.diagnostics.DiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/GameSpaceTheme" />
+
+        <activity
+            android:name=".thermal.custom.CustomProfileListActivity"
+            android:exported="false"
+            android:theme="@style/GameSpaceTheme" />
+
+        <activity
+            android:name=".thermal.custom.CustomProfileEditorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/GameSpaceTheme" />
 
         <service

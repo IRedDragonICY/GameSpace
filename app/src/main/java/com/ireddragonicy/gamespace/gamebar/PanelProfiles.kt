@@ -340,11 +340,11 @@ data class GameColorMode(
 )
 
 internal val colorModes = listOf(
-    GameColorMode(0, "Original", R.drawable.materialsymbols_ic_circle_rounded_filled),
-    GameColorMode(1, "Vivid", R.drawable.materialsymbols_ic_colors_rounded_filled),
-    GameColorMode(2, "Saturated", R.drawable.materialsymbols_ic_brightness_high_rounded_filled),
-    GameColorMode(3, "P3", R.drawable.materialsymbols_ic_looks_rounded_filled),
-    GameColorMode(4, "sRGB", R.drawable.materialsymbols_ic_hdr_on_rounded_filled),
+    GameColorMode(0, "Original", R.drawable.ic_color_original),
+    GameColorMode(1, "Vivid", R.drawable.ic_color_vivid),
+    GameColorMode(2, "Saturated", R.drawable.ic_color_vibrant),
+    GameColorMode(3, "P3", R.drawable.ic_color_bright),
+    GameColorMode(4, "sRGB", R.drawable.ic_color_hdr),
 )
 
 @Composable
@@ -464,63 +464,14 @@ fun GameColorModeSelector(
     }
 }
 
-/**
- * Apply color mode via AOSP ColorDisplayManager.setColorMode().
- * Maps Game Turbo display styles to Xiaomi VENDOR color modes:
- *   0 = Original → Xiaomi mode 269 — color accurate, natural
- *   1 = Vivid → Xiaomi mode 258 — enhanced, punchy colors (device default)
- *   2 = Saturated → Xiaomi mode 256 — oversaturated colors
- *   3 = P3 → Xiaomi mode 268 — wide gamut DCI-P3
- *   4 = sRGB → Xiaomi mode 267 — standard color space
- *
- * IMPORTANT: AOSP modes 0/1/2/3 are NOT available on this device!
- * config_availableColorModes only lists vendor modes 256-269.
- */
+@Deprecated(
+    "Use PerAppSettingStore.setDisplayStyle()",
+    replaceWith = ReplaceWith("PerAppSettingStore(context).setDisplayStyle(pkg, mode)")
+)
 internal fun applyGameColorMode(context: android.content.Context, mode: Int) {
-    try {
-        val cdm = context.getSystemService(
-            android.hardware.display.ColorDisplayManager::class.java
-        ) ?: return
-        // Xiaomi onyx device uses VENDOR color modes (256-269), NOT AOSP standard modes (0-3).
-        // Available modes from config_availableColorModes:
-        //   258 = Vivid (default)
-        //   256 = Saturated
-        //   257 = Standard
-        //   269 = Original (color accurate)
-        //   268 = P3 (wide gamut)
-        //   267 = sRGB (standard gamut)
-        // AOSP modes 0/1/2/3 are NOT available and are silently ignored!
-        val XIAOMI_VIVID = 258
-        val XIAOMI_SATURATED = 256
-        val XIAOMI_STANDARD = 257
-        val XIAOMI_ORIGINAL = 269
-        val XIAOMI_P3 = 268
-        val XIAOMI_SRGB = 267
-        when (mode) {
-            0 -> { // Original — color accurate, natural
-                cdm.setColorMode(XIAOMI_ORIGINAL)
-                android.util.Log.i("GameColorMode", "Original: vendor mode 269")
-            }
-            1 -> { // Vivid — enhanced, punchy colors (Xiaomi default)
-                cdm.setColorMode(XIAOMI_VIVID)
-                android.util.Log.i("GameColorMode", "Vivid: vendor mode 258")
-            }
-            2 -> { // Bright — saturated colors
-                cdm.setColorMode(XIAOMI_SATURATED)
-                android.util.Log.i("GameColorMode", "Bright: vendor mode 256")
-            }
-            3 -> { // P3 — wide gamut for vibrant HDR-like colors
-                cdm.setColorMode(XIAOMI_P3)
-                android.util.Log.i("GameColorMode", "P3: vendor mode 268")
-            }
-            4 -> { // sRGB — standard color space
-                cdm.setColorMode(XIAOMI_SRGB)
-                android.util.Log.i("GameColorMode", "sRGB: vendor mode 267")
-            }
-        }
-    } catch (e: Exception) {
-        android.util.Log.w("GameColorMode", "Failed to apply color mode $mode", e)
-    }
+    com.ireddragonicy.gamespace.display.DisplayColorManager
+        .get(context)
+        .applyStyle(mode)
 }
 
 // ── Compact Dropdown Selectors (replaces horizontal scroll chip rows) ──
@@ -602,7 +553,9 @@ fun ThermalProfileDropdown(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(PanelCardBg, RoundedCornerShape(12.dp)).width(200.dp)
+                modifier = Modifier.width(150.dp),
+                shape = RoundedCornerShape(12.dp),
+                containerColor = PanelCardBg
             ) {
                 profiles.forEach { entry ->
                     val isSelected = entry.index == selectedIndex
@@ -610,22 +563,17 @@ fun ThermalProfileDropdown(
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (entry.isCustom) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.materialsymbols_ic_bolt_rounded_filled),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(12.dp),
-                                        tint = if (isSelected) Color.Black else entryColor,
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                } else {
-                                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(entryColor))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                }
+                                Icon(
+                                    imageVector = getProfileIcon(entry.index, entry.name),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(12.dp),
+                                    tint = if (isSelected) Color.Black else entryColor,
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = entry.name,
                                     color = if (isSelected) Color.Black else PanelTextPrimary,
-                                    fontSize = 12.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 )
                             }
@@ -638,7 +586,8 @@ fun ThermalProfileDropdown(
                         modifier = Modifier.background(
                             if (isSelected) entryColor.copy(alpha = 0.9f) else Color.Transparent,
                             RoundedCornerShape(8.dp)
-                        ),
+                        ).height(30.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                     )
                 }
             }
@@ -739,7 +688,9 @@ fun DisplayStyleDropdown(
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(PanelCardBg, RoundedCornerShape(12.dp)).width(200.dp)
+                modifier = Modifier.width(140.dp),
+                shape = RoundedCornerShape(12.dp),
+                containerColor = PanelCardBg
             ) {
                 colorModes.forEach { mode ->
                     val isSelected = currentMode.value == mode.id
@@ -749,14 +700,14 @@ fun DisplayStyleDropdown(
                                 Icon(
                                     painter = painterResource(mode.iconRes),
                                     contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(10.dp),
                                     tint = if (isSelected) Color.Black else PanelTextPrimary,
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = mode.label,
                                     color = if (isSelected) Color.Black else PanelTextPrimary,
-                                    fontSize = 12.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 )
                             }

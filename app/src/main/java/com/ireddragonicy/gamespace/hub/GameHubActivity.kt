@@ -1,74 +1,47 @@
-/*
- * Copyright (C) 2026 IRedDragonICY
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+/* --- ireddragonicy/gamespace/hub/GameHubActivity.kt --- */
 package com.ireddragonicy.gamespace.hub
 
 import android.app.Activity
 import android.content.Intent
 import android.content.res.Configuration
+import android.database.ContentObserver
 import android.graphics.drawable.Drawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.UserHandle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.MotionScheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -77,15 +50,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ireddragonicy.gamespace.R
-import com.ireddragonicy.gamespace.data.SystemSettings
+import com.ireddragonicy.gamespace.data.PerAppSettingStore
 import com.ireddragonicy.gamespace.data.UserGame
-import com.ireddragonicy.gamespace.gamebar.PanelChromeOverlay
 import com.ireddragonicy.gamespace.gamebar.PerformanceEditor
-import com.ireddragonicy.gamespace.gamebar.PanelTheme
+import com.ireddragonicy.gamespace.gamebar.colorModes
 import com.ireddragonicy.gamespace.gamebar.getThermalProfileColor
 import com.ireddragonicy.gamespace.gamebar.rememberDrawablePainter
-import com.ireddragonicy.gamespace.gamebar.chamferShape
-import com.ireddragonicy.gamespace.gamebar.glassBrush
 import com.ireddragonicy.gamespace.preferences.AppListPreferences
 import com.ireddragonicy.gamespace.preferences.appselector.AppSelectorActivity
 import com.ireddragonicy.gamespace.settings.PerAppSettingsActivity
@@ -95,20 +65,8 @@ import com.ireddragonicy.gamespace.thermal.ThermalProfiles
 import com.ireddragonicy.gamespace.utils.di.ServiceViewEntryPoint
 import dagger.hilt.android.EntryPointAccessors
 import org.json.JSONArray
-import org.json.JSONObject
 
-/**
- * GAME SPACE hub — the launcher-facing home of the app, in the same ROG
- * design language as the in-game overlay (Game Turbo-class game manager).
- *
- *  - QUICK LAUNCH rail: horizontal, thumb-reach game cards
- *  - GAME LIBRARY: vertical list (2-column grid in landscape) with per-game
- *    thermal profile chips (built-ins + user customs) and the full per-game
- *    CPU/GPU tuner (same editor as the overlay, backed by PerfTuner)
- *  - Add games via the existing selector; open the classic settings anytime
- */
 class GameHubActivity : ComponentActivity() {
-
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,686 +81,707 @@ class GameHubActivity : ComponentActivity() {
     }
 }
 
-private data class GameEntry(
-    val packageName: String,
-    val label: String,
-    val icon: Drawable?,
-)
-
+private data class GameEntry(val packageName: String, val label: String, val icon: Drawable?)
 private data class ProfileOption(val index: Int, val name: String)
 
 @Composable
 private fun GameHubScreen() {
     val context = LocalContext.current
-    val entryPoint = remember {
-        EntryPointAccessors.fromApplication(
-            context.applicationContext, ServiceViewEntryPoint::class.java
-        )
-    }
+    val entryPoint = remember { EntryPointAccessors.fromApplication(context.applicationContext, ServiceViewEntryPoint::class.java) }
     val systemSettings = remember { entryPoint.systemSettings() }
     val appSettings = remember { entryPoint.appSettings() }
     val perfTuner = remember { entryPoint.perfTuner() }
-    val accent = androidx.compose.material3.MaterialTheme.colorScheme.primary
 
-    val games = remember { mutableStateListOf<GameEntry>() }
+    // FIX: list diganti secara atomik (bukan clear()+add) supaya LazyColumn
+    // diff-nya mulus dan tidak ada flicker saat game di-remove.
+    var games by remember { mutableStateOf<List<GameEntry>>(emptyList()) }
     var refreshKey by remember { mutableStateOf(0) }
     var carouselMode by remember { mutableStateOf(appSettings.hubCarouselMode) }
 
     LaunchedEffect(refreshKey) {
-        games.clear()
         val pm = context.packageManager
-        systemSettings.userGames.forEach { game: UserGame ->
+        games = systemSettings.userGames.mapNotNull { game: UserGame ->
             runCatching {
                 val info = pm.getApplicationInfo(game.packageName, 0)
-                games.add(
-                    GameEntry(
-                        packageName = game.packageName,
-                        label = pm.getApplicationLabel(info).toString(),
-                        icon = pm.getApplicationIcon(info),
-                    )
-                )
-            }
+                GameEntry(game.packageName, pm.getApplicationLabel(info).toString(), pm.getApplicationIcon(info))
+            }.getOrNull()
         }
     }
 
-    val selectorLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
+    // FIX (jaring pengaman): observe kunci Settings "gamespace_game_list".
+    // Remove dari mana pun — panel in-game, AppListPreferences, atau layar
+    // per-app — menulis kunci ini, jadi Hub selalu ikut ter-refresh walau
+    // kita tidak membuka flow-nya sendiri.
+    DisposableEffect(Unit) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { refreshKey++ }
+        }
+        context.contentResolver.registerContentObserver(
+            Settings.System.getUriFor("gamespace_game_list"), false, observer
+        )
+        onDispose { context.contentResolver.unregisterContentObserver(observer) }
+    }
+
+    val selectorLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             result.data?.getStringExtra(AppListPreferences.EXTRA_APP)?.let { pkg ->
                 val current = systemSettings.userGames.orEmpty()
-                if (current.none { it.packageName == pkg }) {
-                    systemSettings.userGames = current + UserGame(pkg)
-                }
-                refreshKey++
+                if (current.none { it.packageName == pkg }) systemSettings.userGames = current + UserGame(pkg)
             }
         }
+        refreshKey++
     }
 
-    val isLandscape =
-        LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    // FIX (inti bug remove): per-app settings dibuka FOR RESULT.
+    // Kembali dari sana — game di-remove (RESULT_OK + PREF_UNREGISTER) atau
+    // tuning-nya diedit — library + semua feature chip langsung di-refresh.
+    val perAppSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { refreshKey++ }
+
+    val openPerAppSettings: (String) -> Unit = { pkg ->
+        perAppSettingsLauncher.launch(
+            Intent(context, PerAppSettingsActivity::class.java)
+                .putExtra(PerAppSettingsActivity.EXTRA_PACKAGE, pkg)
+        )
+    }
+
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     Scaffold(
-        containerColor = PanelTheme.BaseDeep,
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    selectorLauncher.launch(Intent(context, AppSelectorActivity::class.java))
-                },
-                containerColor = accent,
-                shape = chamferShape(bigCut = 14.dp, smallCut = 5.dp),
+                onClick = { selectorLauncher.launch(Intent(context, AppSelectorActivity::class.java)) },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_add_rounded_filled),
-                    contentDescription = "Add game",
-                    tint = Color.Black,
-                )
+                Icon(Icons.Rounded.Add, contentDescription = "Add game")
             }
         },
     ) { insets ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(PanelTheme.BaseDark, PanelTheme.BaseDeep)
-                    )
-                )
-                .padding(insets)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(insets),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+            item {
+                HubHeader(
+                    gameCount = games.size,
+                    carouselMode = carouselMode,
+                    onToggleLayout = {
+                        carouselMode = !carouselMode
+                        appSettings.hubCarouselMode = carouselMode
+                    }
+                )
+            }
+            if (games.isNotEmpty()) {
+                item { Text("Quick Launch", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp)) }
                 item {
-                    HubHeader(
-                        accent = accent,
-                        gameCount = games.size,
-                        carouselMode = carouselMode,
-                        onToggleLayout = {
-                            carouselMode = !carouselMode
-                            appSettings.hubCarouselMode = carouselMode
-                        },
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(games, key = { "quick_${it.packageName}" }) { game ->
+                            QuickLaunchCard(game) { launchGame(context, game.packageName) }
+                        }
+                    }
+                }
+            }
+            item { Text("Game Library", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp)) }
+            if (games.isEmpty()) {
+                item { EmptyLibraryCard() }
+            } else if (carouselMode) {
+                item {
+                    val pagerState = rememberPagerState { games.size }
+                    HorizontalPager(state = pagerState, pageSpacing = 16.dp, contentPadding = PaddingValues(horizontal = 24.dp)) { page ->
+                        // getOrNull: aman saat list menyusut (game baru di-remove)
+                        // sebelum pager selesai clamp halamannya.
+                        games.getOrNull(page)?.let { game ->
+                            GameHeroCard(
+                                game = game,
+                                perfTuner = perfTuner,
+                                onChanged = { refreshKey++ },
+                                onOpenSettings = { openPerAppSettings(game.packageName) },
+                                refreshKey = refreshKey,
+                            )
+                        }
+                    }
+                }
+            } else if (isLandscape) {
+                items(games.chunked(2), key = { it.first().packageName }) { rowGames ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        rowGames.forEach { game ->
+                            Box(modifier = Modifier.weight(1f)) {
+                                GameLibraryCard(
+                                    game = game,
+                                    perfTuner = perfTuner,
+                                    onChanged = { refreshKey++ },
+                                    onOpenSettings = { openPerAppSettings(game.packageName) },
+                                    refreshKey = refreshKey,
+                                )
+                            }
+                        }
+                        if (rowGames.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            } else {
+                items(games, key = { it.packageName }) { game ->
+                    GameLibraryCard(
+                        game = game,
+                        perfTuner = perfTuner,
+                        onChanged = { refreshKey++ },
+                        onOpenSettings = { openPerAppSettings(game.packageName) },
+                        refreshKey = refreshKey,
                     )
                 }
-
-                if (games.isNotEmpty()) {
-                    item {
-                        HubSectionTitle("QUICK LAUNCH", accent)
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            items(games, key = { "quick_${it.packageName}" }) { game ->
-                                QuickLaunchCard(game, accent) {
-                                    launchGame(context, game.packageName)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item { HubSectionTitle("GAME LIBRARY", accent) }
-
-                if (games.isEmpty()) {
-                    item { EmptyLibraryCard(accent) }
-                } else if (carouselMode) {
-                    // Hero carousel — one big Game Turbo-style card per swipe
-                    item {
-                        val pagerState = rememberPagerState { games.size }
-                        HorizontalPager(
-                            state = pagerState,
-                            pageSpacing = 12.dp,
-                            contentPadding = PaddingValues(horizontal = 24.dp),
-                        ) { page ->
-                            GameHeroCard(games[page], accent, perfTuner) { refreshKey++ }
-                        }
-                    }
-                } else if (isLandscape) {
-                    items(games.chunked(2), key = { it.first().packageName }) { rowGames ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            rowGames.forEach { game ->
-                                Box(modifier = Modifier.weight(1f)) {
-                                    GameLibraryCard(game, accent, perfTuner) { refreshKey++ }
-                                }
-                            }
-                            if (rowGames.size == 1) Spacer(modifier = Modifier.weight(1f))
-                        }
-                    }
-                } else {
-                    items(games, key = { it.packageName }) { game ->
-                        GameLibraryCard(game, accent, perfTuner) { refreshKey++ }
-                    }
-                }
-
-                item { Spacer(modifier = Modifier.height(72.dp)) } // FAB clearance
             }
+            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
 
 @Composable
-private fun HubHeader(
-    accent: Color,
-    gameCount: Int,
-    carouselMode: Boolean,
-    onToggleLayout: () -> Unit,
-) {
+private fun HubHeader(gameCount: Int, carouselMode: Boolean, onToggleLayout: () -> Unit) {
     val context = LocalContext.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.materialsymbols_ic_sports_esports_rounded_filled),
-            contentDescription = null,
-            tint = accent,
-            modifier = Modifier.size(28.dp),
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column {
-            Text(
-                text = "GAME SPACE",
-                color = PanelTheme.TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 4.sp,
-            )
-            Text(
-                text = "$gameCount GAMES REGISTERED",
-                color = accent.copy(alpha = 0.8f),
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("Game Space", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text("$gameCount games installed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = onToggleLayout) {
+            Icon(
+                painterResource(if (carouselMode) R.drawable.materialsymbols_ic_view_list_rounded_filled else R.drawable.materialsymbols_ic_view_carousel_rounded_filled),
+                contentDescription = "Toggle layout", tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(modifier = Modifier.weight(1f))
-        // Library layout: vertical list ⇄ hero carousel
-        Icon(
-            painter = painterResource(
-                if (carouselMode) R.drawable.materialsymbols_ic_view_list_rounded_filled
-                else R.drawable.materialsymbols_ic_view_carousel_rounded_filled
-            ),
-            contentDescription = "Toggle library layout",
-            tint = accent,
-            modifier = Modifier
-                .size(24.dp)
-                .clickable(onClick = onToggleLayout),
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        // Global FPS stats sessions
-        Icon(
-            painter = painterResource(R.drawable.materialsymbols_ic_monitoring_rounded_filled),
-            contentDescription = "FPS stats",
-            tint = PanelTheme.TextDim,
-            modifier = Modifier
-                .size(24.dp)
-                .clickable {
-                    context.startActivity(Intent(context, FpsStatsActivity::class.java))
-                },
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Icon(
-            painter = painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled),
-            contentDescription = "Settings",
-            tint = PanelTheme.TextDim,
-            modifier = Modifier
-                .size(24.dp)
-                .clickable {
-                    context.startActivity(Intent(context, HubSettingsActivity::class.java))
-                },
-        )
+        IconButton(onClick = { context.startActivity(Intent(context, com.ireddragonicy.gamespace.settings.diagnostics.DiagnosticsActivity::class.java)) }) {
+            Icon(Icons.Rounded.Info, contentDescription = "Diagnostics", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = { context.startActivity(Intent(context, FpsStatsActivity::class.java)) }) {
+            Icon(painterResource(R.drawable.materialsymbols_ic_monitoring_rounded_filled), contentDescription = "FPS stats", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        IconButton(onClick = { context.startActivity(Intent(context, HubSettingsActivity::class.java)) }) {
+            Icon(painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled), contentDescription = "Settings", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
-/**
- * Hero card for carousel mode — one full-width Game Turbo-style card per
- * game: big art, profile chip, inline perf tuner and a prominent launch bar.
- */
 @Composable
 private fun GameHeroCard(
     game: GameEntry,
-    accent: Color,
     perfTuner: PerfTuner,
     onChanged: () -> Unit,
+    onOpenSettings: () -> Unit,
+    refreshKey: Int,
 ) {
     val context = LocalContext.current
-    val cardShape = remember { chamferShape(bigCut = 20.dp, smallCut = 7.dp) }
     var tunerOpen by remember(game.packageName) { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(glassBrush(accent), cardShape),
+    var profile by remember(game.packageName, tunerOpen) { mutableStateOf(perfTuner.loadProfile(game.packageName) ?: PerfTuner.PerfProfile()) }
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Image(
-                painter = rememberDrawablePainter(game.icon),
-                contentDescription = game.label,
-                modifier = Modifier.size(96.dp),
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = game.label,
-                color = PanelTheme.TextPrimary,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            ThermalProfileChip(game.packageName, accent)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled),
-                    contentDescription = "Perf tuner",
-                    tint = if (tunerOpen) accent else PanelTheme.TextDim,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable { tunerOpen = !tunerOpen },
-                )
-                Spacer(modifier = Modifier.width(20.dp))
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled),
-                    contentDescription = "Per-app settings",
-                    tint = PanelTheme.TextDim,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable {
-                            context.startActivity(
-                                Intent(context, PerAppSettingsActivity::class.java).apply {
-                                    putExtra("package_name", game.packageName)
-                                }
-                            )
-                        },
-                )
-                Spacer(modifier = Modifier.width(20.dp))
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_monitoring_rounded_filled),
-                    contentDescription = "FPS stats",
-                    tint = PanelTheme.TextDim,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable {
-                            context.startActivity(Intent(context, FpsStatsActivity::class.java))
-                        },
-                )
-            }
-
-            AnimatedVisibility(visible = tunerOpen) {
-                var profile by remember(game.packageName, tunerOpen) {
-                    mutableStateOf(
-                        perfTuner.loadProfile(game.packageName) ?: PerfTuner.PerfProfile()
-                    )
+        Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Image(rememberDrawablePainter(game.icon), contentDescription = null, modifier = Modifier.size(100.dp).clip(RoundedCornerShape(20.dp)))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(game.label, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(modifier = Modifier.height(8.dp))
+            GameFeatureRow(game.packageName, refreshKey)
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                FilledTonalIconButton(onClick = { tunerOpen = !tunerOpen }) { Icon(painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled), "Perf tuner") }
+                FilledTonalIconButton(onClick = onOpenSettings) {
+                    Icon(painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled), "Settings")
                 }
+            }
+            AnimatedVisibility(visible = tunerOpen) {
                 PerformanceEditor(
-                    perfTuner = perfTuner,
-                    profile = profile,
-                    accent = accent,
-                    onCommit = {
-                        profile = it
-                        perfTuner.saveProfileFor(game.packageName, it)
-                        onChanged()
-                    },
-                    modifier = Modifier.padding(top = 10.dp),
+                    perfTuner = perfTuner, profile = profile, accent = MaterialTheme.colorScheme.primary,
+                    onCommit = { profile = it; perfTuner.saveProfileFor(game.packageName, it); onChanged() },
+                    modifier = Modifier.padding(top = 16.dp)
                 )
             }
-
-            Spacer(modifier = Modifier.height(14.dp))
-            // Prominent launch bar — the thumb target
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .background(accent, remember { chamferShape(bigCut = 12.dp, smallCut = 4.dp) })
-                    .clickable { launchGame(context, game.packageName) },
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = { launchGame(context, game.packageName) },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_rocket_launch_rounded_filled),
-                    contentDescription = null,
-                    tint = Color.Black,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "LAUNCH",
-                    color = Color.Black,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 3.sp,
-                )
+                Text("Play", style = MaterialTheme.typography.labelLarge, fontSize = 16.sp)
             }
         }
-        PanelChromeOverlay(accent = accent, modifier = Modifier.matchParentSize())
     }
 }
 
 @Composable
-private fun HubSectionTitle(title: String, accent: Color) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(width = 3.dp, height = 12.dp)
-                .background(accent)
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = title,
-            color = PanelTheme.TextDim,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 3.sp,
-        )
-    }
-}
-
-@Composable
-private fun QuickLaunchCard(game: GameEntry, accent: Color, onLaunch: () -> Unit) {
-    val cardShape = remember { chamferShape(bigCut = 12.dp, smallCut = 4.dp) }
-    Box(
-        modifier = Modifier
-            .size(width = 84.dp, height = 100.dp)
-            .background(glassBrush(accent), cardShape)
-            .clickable(onClick = onLaunch),
+private fun QuickLaunchCard(game: GameEntry, onLaunch: () -> Unit) {
+    ElevatedCard(
+        onClick = onLaunch,
+        modifier = Modifier.size(90.dp, 100.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Image(
-                painter = rememberDrawablePainter(game.icon),
-                contentDescription = game.label,
-                modifier = Modifier.size(52.dp),
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = game.label,
-                color = PanelTheme.TextPrimary,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        Column(modifier = Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Image(rememberDrawablePainter(game.icon), contentDescription = null, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(game.label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        PanelChromeOverlay(accent = accent, modifier = Modifier.fillMaxSize())
     }
 }
 
 @Composable
-private fun EmptyLibraryCard(accent: Color) {
-    val cardShape = remember { chamferShape() }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(glassBrush(accent), cardShape)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun EmptyLibraryCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Icon(
-            painter = painterResource(R.drawable.materialsymbols_ic_joystick_rounded_filled),
-            contentDescription = null,
-            tint = accent.copy(alpha = 0.6f),
-            modifier = Modifier.size(40.dp),
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "NO GAMES YET",
-            color = PanelTheme.TextPrimary,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 2.sp,
-        )
-        Text(
-            text = "Tap + to add your first game",
-            color = PanelTheme.TextDim,
-            fontSize = 11.sp,
-        )
+        Column(modifier = Modifier.padding(32.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(painterResource(R.drawable.materialsymbols_ic_joystick_rounded_filled), null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("No Games Yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Tap the + button to add your games", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
 @Composable
 private fun GameLibraryCard(
     game: GameEntry,
-    accent: Color,
     perfTuner: PerfTuner,
     onChanged: () -> Unit,
+    onOpenSettings: () -> Unit,
+    refreshKey: Int,
 ) {
     val context = LocalContext.current
-    val cardShape = remember { chamferShape(bigCut = 14.dp, smallCut = 5.dp) }
     var tunerOpen by remember(game.packageName) { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(glassBrush(accent), cardShape),
+    var profile by remember(game.packageName, tunerOpen) { mutableStateOf(perfTuner.loadProfile(game.packageName) ?: PerfTuner.PerfProfile()) }
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
-                    painter = rememberDrawablePainter(game.icon),
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp),
+                    rememberDrawablePainter(game.icon), contentDescription = null,
+                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(12.dp))
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = game.label,
-                        color = PanelTheme.TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    game.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Box(
+                    modifier = Modifier.size(32.dp).clip(CircleShape).clickable { tunerOpen = !tunerOpen },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled), "Perf tuner",
+                        tint = if (tunerOpen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    ThermalProfileChip(game.packageName, accent)
                 }
-
-                // PERF TUNER toggle
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled),
-                    contentDescription = "Perf tuner",
-                    tint = if (tunerOpen) accent else PanelTheme.TextDim,
+                // FIX: buka per-app settings FOR RESULT (lewat callback launcher),
+                // bukan startActivity() biasa — supaya Hub tahu saat kita kembali.
+                Box(
+                    modifier = Modifier.size(32.dp).clip(CircleShape).clickable(onClick = onOpenSettings),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled), "Settings",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Box(
                     modifier = Modifier
-                        .size(22.dp)
-                        .clickable { tunerOpen = !tunerOpen },
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                // Per-app settings
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_settings_rounded_filled),
-                    contentDescription = "Per-app settings",
-                    tint = PanelTheme.TextDim,
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clickable {
-                            context.startActivity(
-                                Intent(context, PerAppSettingsActivity::class.java).apply {
-                                    putExtra("package_name", game.packageName)
-                                }
-                            )
-                        },
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                // Launch
-                Icon(
-                    painter = painterResource(R.drawable.materialsymbols_ic_rocket_launch_rounded_filled),
-                    contentDescription = "Launch",
-                    tint = accent,
-                    modifier = Modifier
-                        .size(24.dp)
+                        .size(36.dp).clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer)
                         .clickable { launchGame(context, game.packageName) },
-                )
-            }
-
-            // Full per-game CPU/GPU DVFS editor (same engine as the overlay)
-            AnimatedVisibility(visible = tunerOpen) {
-                var profile by remember(game.packageName, tunerOpen) {
-                    mutableStateOf(perfTuner.loadProfile(game.packageName) ?: PerfTuner.PerfProfile())
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painterResource(R.drawable.materialsymbols_ic_rocket_launch_rounded_filled), "Launch",
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            GameFeatureRow(game.packageName, refreshKey)
+            AnimatedVisibility(visible = tunerOpen) {
                 PerformanceEditor(
-                    perfTuner = perfTuner,
-                    profile = profile,
-                    accent = accent,
-                    onCommit = {
-                        profile = it
-                        perfTuner.saveProfileFor(game.packageName, it)
-                        onChanged()
-                    },
-                    modifier = Modifier.padding(top = 8.dp),
+                    perfTuner = perfTuner, profile = profile, accent = MaterialTheme.colorScheme.primary,
+                    onCommit = { profile = it; perfTuner.saveProfileFor(game.packageName, it); onChanged() },
+                    modifier = Modifier.padding(top = 12.dp)
                 )
             }
         }
-        PanelChromeOverlay(accent = accent.copy(alpha = 0.6f), modifier = Modifier.matchParentSize())
+    }
+}
+
+@Composable
+private fun ThermalProfileChip(packageName: String, refreshKey: Int) {
+    val context = LocalContext.current
+    val store = remember { PerAppSettingStore(context) }
+    var menuOpen by remember { mutableStateOf(false) }
+    // FIX: refreshKey jadi key remember → nilai dibaca ulang dari store
+    // setiap kali Hub ke-refresh (mis. selesai edit dari layar per-app).
+    var currentIdx by remember(packageName, refreshKey) { mutableStateOf(store.thermalProfile(packageName)) }
+    val options = remember(menuOpen) { loadProfileOptions(context) }
+    val label = options.find { it.index == currentIdx }?.name ?: ThermalProfiles.PROFILE_NAMES.getOrElse(0) { "Auto" }
+    val color = getThermalProfileColor(currentIdx)
+    val iconRes = remember(label) {
+        when {
+            label.contains("Battery", ignoreCase = true) || label.contains("Saver", ignoreCase = true) -> R.drawable.materialsymbols_ic_battery_saver_rounded_filled
+            label.contains("Performance", ignoreCase = true) || label.contains("Extreme", ignoreCase = true) -> R.drawable.materialsymbols_ic_rocket_launch_rounded_filled
+            label.contains("Balanced", ignoreCase = true) -> R.drawable.materialsymbols_ic_joystick_rounded_filled
+            else -> R.drawable.materialsymbols_ic_tune_rounded_filled
+        }
+    }
+    Box {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = 0.16f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(painterResource(iconRes), null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option.name) },
+                    trailingIcon = if (option.index == currentIdx) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
+                    onClick = {
+                        currentIdx = option.index
+                        store.setThermalProfile(packageName, option.index)
+                        menuOpen = false
+                    }
+                )
+            }
+        }
     }
 }
 
 /**
- * Per-game thermal profile selector chip — built-in profiles plus user
- * custom profiles (indices >= 1000), written to mithermal_app_profiles.
- * GameSpace's ThermalController applies it live on foreground change.
+ * NEW: chip AFME interaktif — selalu tampil di kartu game.
+ * Off  → abu-abu (onSurfaceVariant), label "AFME".
+ * On   → cyan khas AFME (0xFF00E5FF), label "AFME 2×/3×/4×".
+ * Tulis lewat PerAppSettingStore.setAfmeMultiplier() sehingga sysprop
+ * persist.sys.afme.* ikut tersinkron → tile AFME di panel in-game dan
+ * FpsInteractor otomatis mengikuti.
  */
 @Composable
-private fun ThermalProfileChip(packageName: String, accent: Color) {
-    val context = LocalContext.current
+private fun AfmeChip(packageName: String, store: PerAppSettingStore, refreshKey: Int) {
+    var multiplier by remember(packageName, refreshKey) { mutableIntStateOf(store.afmeMultiplier(packageName)) }
     var menuOpen by remember { mutableStateOf(false) }
-    var currentIdx by remember(packageName) {
-        mutableStateOf(readAppProfile(context, packageName))
-    }
-    val options = remember(menuOpen) { loadProfileOptions(context) }
-    val label = options.find { it.index == currentIdx }?.name
-        ?: ThermalProfiles.PROFILE_NAMES.getOrElse(0) { "Auto" }
-    val color = getThermalProfileColor(currentIdx)
-    val chipShape = remember { chamferShape(bigCut = 6.dp, smallCut = 2.dp) }
+    val active = multiplier > 0
+    val color = if (active) Color(0xFF00E5FF) else MaterialTheme.colorScheme.onSurfaceVariant
+    val options = remember { listOf(0 to "Off", 2 to "2×", 3 to "3×", 4 to "4×") }
 
     Box {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(color.copy(alpha = 0.14f), chipShape)
-                .clickable { menuOpen = true }
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = if (active) 0.16f else 0.10f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
         ) {
-            Box(
-                modifier = Modifier
-                    .size(5.dp)
-                    .background(color, chamferShape(bigCut = 2.dp, smallCut = 1.dp))
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = label,
-                color = color,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Icon(
-                painter = painterResource(R.drawable.materialsymbols_ic_expand_more_rounded_filled),
-                contentDescription = null,
-                tint = color.copy(alpha = 0.7f),
-                modifier = Modifier.size(10.dp),
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(Icons.Rounded.AutoAwesome, null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (active) "AFME ${multiplier}×" else "AFME",
+                    color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                )
+            }
         }
-
-        DropdownMenu(
-            expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
-            modifier = Modifier.background(PanelTheme.BaseDark),
-        ) {
-            options.forEach { option ->
-                val optColor = getThermalProfileColor(option.index)
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { (value, name) ->
                 DropdownMenuItem(
-                    text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .background(optColor, chamferShape(2.dp, 1.dp))
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = option.name,
-                                color = if (option.index == currentIdx) optColor
-                                else PanelTheme.TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = if (option.index == currentIdx) FontWeight.Bold
-                                else FontWeight.Normal,
-                            )
-                        }
-                    },
+                    text = { Text(name) },
+                    trailingIcon = if (value == multiplier) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
                     onClick = {
-                        currentIdx = option.index
-                        writeAppProfile(context, packageName, option.index)
+                        multiplier = value
+                        store.setAfmeMultiplier(packageName, value)
                         menuOpen = false
-                    },
+                    }
                 )
             }
         }
     }
 }
 
-// ── Data helpers ────────────────────────────────────────────────────────────
+/**
+ * NEW: chip Display Style — ganti mode warna langsung dari kartu.
+ * Original (default) → abu-abu; mode lain → primary.
+ * store.setDisplayStyle() langsung apply live kalau game-nya sedang jalan
+ * (ActiveGameHolder), dan tersimpan per-game untuk sesi berikutnya.
+ */
+@Composable
+private fun DisplayStyleChip(packageName: String, store: PerAppSettingStore, refreshKey: Int) {
+    var modeId by remember(packageName, refreshKey) { mutableIntStateOf(store.displayStyle(packageName)) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val mode = colorModes.firstOrNull { it.id == modeId } ?: colorModes.first()
+    val active = modeId != 0
+    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
 
-private fun launchGame(context: android.content.Context, packageName: String) {
-    context.packageManager.getLaunchIntentForPackage(packageName)?.let {
-        context.startActivity(it)
+    Box {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = if (active) 0.16f else 0.10f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(painterResource(mode.iconRes), null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(mode.label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            colorModes.forEach { m ->
+                DropdownMenuItem(
+                    text = { Text(m.label) },
+                    leadingIcon = {
+                        Icon(painterResource(m.iconRes), null, modifier = Modifier.size(16.dp))
+                    },
+                    trailingIcon = if (m.id == modeId) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
+                    onClick = {
+                        modeId = m.id
+                        store.setDisplayStyle(packageName, m.id)
+                        menuOpen = false
+                    }
+                )
+            }
+        }
     }
 }
 
-/** Gaming-relevant built-ins + every user custom profile. */
+/**
+ * NEW: chip MSAA (Anti-Aliasing) interaktif.
+ * Off → abu-abu (onSurfaceVariant), label "MSAA".
+ * 2× / 4× → hijau (0xFF00E676), label "MSAA 2×/4×".
+ */
+@Composable
+private fun MsaaChip(packageName: String, store: PerAppSettingStore, refreshKey: Int) {
+    var level by remember(packageName, refreshKey) { mutableIntStateOf(store.gpuMsaa(packageName)) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val active = level > 0
+    val color = if (active) Color(0xFF00E676) else MaterialTheme.colorScheme.onSurfaceVariant
+    val options = remember { listOf(0 to "Off", 2 to "2×", 4 to "4×") }
+
+    Box {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = if (active) 0.16f else 0.10f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled), null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (active) "MSAA ${level}×" else "MSAA",
+                    color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                )
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { (value, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    trailingIcon = if (value == level) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
+                    onClick = {
+                        level = value
+                        store.setGpuMsaa(packageName, value)
+                        menuOpen = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * NEW: chip AF (Anisotropic Filtering) interaktif.
+ * Off → abu-abu (onSurfaceVariant), label "AF".
+ * 2×..16× → kuning emas (0xFFFFD700), label "AF 2×..16×".
+ */
+@Composable
+private fun AfChip(packageName: String, store: PerAppSettingStore, refreshKey: Int) {
+    var level by remember(packageName, refreshKey) { mutableIntStateOf(store.gpuAf(packageName)) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val active = level > 0
+    val color = if (active) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurfaceVariant
+    val options = remember { listOf(0 to "Off", 2 to "2×", 4 to "4×", 8 to "8×", 16 to "16×") }
+
+    Box {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = if (active) 0.16f else 0.10f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled), null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = if (active) "AF ${level}×" else "AF",
+                    color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1
+                )
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { (value, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    trailingIcon = if (value == level) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
+                    onClick = {
+                        level = value
+                        store.setGpuAf(packageName, value)
+                        menuOpen = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/**
+ * NEW: chip Texture Filtering Quality interaktif.
+ * Default → abu-abu, Speed/Balanced/Quality → cyan (0xFF00B0FF).
+ */
+@Composable
+private fun TextureQualityChip(packageName: String, store: PerAppSettingStore, refreshKey: Int) {
+    var quality by remember(packageName, refreshKey) { mutableIntStateOf(store.gpuTexQuality(packageName)) }
+    var menuOpen by remember { mutableStateOf(false) }
+    val active = quality > 0
+    val color = if (active) Color(0xFF00B0FF) else MaterialTheme.colorScheme.onSurfaceVariant
+    val options = remember { listOf(0 to "Default", 1 to "Speed", 2 to "Balanced", 3 to "Quality") }
+    val label = when (quality) {
+        1 -> "Tex: Speed"
+        2 -> "Tex: Balanced"
+        3 -> "Tex: Quality"
+        else -> "Texture"
+    }
+
+    Box {
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = color.copy(alpha = if (active) 0.16f else 0.10f),
+            modifier = Modifier.height(22.dp).clickable { menuOpen = true }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 7.dp)
+            ) {
+                Icon(painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled), null, tint = color, modifier = Modifier.size(11.dp))
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            options.forEach { (value, name) ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    trailingIcon = if (value == quality) {
+                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                    } else null,
+                    onClick = {
+                        quality = value
+                        store.setGpuTexQuality(packageName, value)
+                        menuOpen = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+/** Read-only mini feature pill: coloured background + Material icon + label. */
+@Composable
+private fun FeatureChip(icon: ImageVector, label: String, color: Color) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .height(22.dp)
+            .background(color.copy(alpha = 0.16f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 7.dp)
+    ) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(11.dp))
+        Spacer(modifier = Modifier.width(3.dp))
+        Text(label, color = color, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+/**
+ * Satu baris pill status yang bisa di-scroll horizontal:
+ * Thermal (dropdown) · AFME (dropdown) · MSAA (dropdown) · AF (dropdown) ·
+ * Texture Quality (dropdown) · Display Style (dropdown) · Color+ (read-only).
+ */
+@Composable
+private fun GameFeatureRow(packageName: String, refreshKey: Int) {
+    val context = LocalContext.current
+    val store = remember { PerAppSettingStore(context) }
+    val colorEnhance = remember(packageName, refreshKey) { store.colorEnhance(packageName) }
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ThermalProfileChip(packageName, refreshKey)
+        AfmeChip(packageName, store, refreshKey)
+        MsaaChip(packageName, store, refreshKey)
+        AfChip(packageName, store, refreshKey)
+        TextureQualityChip(packageName, store, refreshKey)
+        DisplayStyleChip(packageName, store, refreshKey)
+        if (colorEnhance) FeatureChip(Icons.Rounded.Palette, "Color+", Color(0xFFE040FB))
+    }
+}
+
+private fun launchGame(context: android.content.Context, packageName: String) {
+    context.packageManager.getLaunchIntentForPackage(packageName)?.let { context.startActivity(it) }
+}
+
 private fun loadProfileOptions(context: android.content.Context): List<ProfileOption> {
     val gamingIndices = listOf(0, 2, 3, 4, 5, 6, 7, 16)
-    val options = gamingIndices.map {
-        ProfileOption(it, ThermalProfiles.PROFILE_NAMES[it])
-    }.toMutableList()
-
-    val json = Settings.System.getStringForUser(
-        context.contentResolver, ThermalProfiles.KEY_CUSTOM_PROFILES, UserHandle.USER_CURRENT
-    )
+    val options = gamingIndices.map { ProfileOption(it, ThermalProfiles.PROFILE_NAMES[it]) }.toMutableList()
+    val json = Settings.System.getStringForUser(context.contentResolver, ThermalProfiles.KEY_CUSTOM_PROFILES, UserHandle.USER_CURRENT)
     if (!json.isNullOrEmpty()) {
         runCatching {
             val arr = JSONArray(json)
-            for (i in 0 until arr.length()) {
-                options.add(
-                    ProfileOption(
-                        index = ThermalProfiles.CUSTOM_PROFILE_BASE + i,
-                        name = arr.getJSONObject(i).optString("name", "Custom #${i + 1}"),
-                    )
-                )
-            }
+            for (i in 0 until arr.length()) options.add(ProfileOption(ThermalProfiles.CUSTOM_PROFILE_BASE + i, arr.getJSONObject(i).optString("name", "Custom #${i + 1}")))
         }
     }
     return options
-}
-
-private fun readAppProfile(context: android.content.Context, packageName: String): Int {
-    val json = Settings.System.getStringForUser(
-        context.contentResolver, ThermalProfiles.KEY_APP_PROFILES, UserHandle.USER_CURRENT
-    ) ?: return 0
-    return runCatching { JSONObject(json).optInt(packageName, 0) }.getOrDefault(0)
-}
-
-private fun writeAppProfile(context: android.content.Context, packageName: String, index: Int) {
-    runCatching {
-        val json = Settings.System.getStringForUser(
-            context.contentResolver, ThermalProfiles.KEY_APP_PROFILES, UserHandle.USER_CURRENT
-        ) ?: "{}"
-        val obj = JSONObject(json)
-        if (index == 0) obj.remove(packageName) else obj.put(packageName, index)
-        Settings.System.putStringForUser(
-            context.contentResolver, ThermalProfiles.KEY_APP_PROFILES,
-            obj.toString(), UserHandle.USER_CURRENT
-        )
-    }
 }

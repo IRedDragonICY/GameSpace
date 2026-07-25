@@ -62,6 +62,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.*
 import androidx.compose.ui.geometry.*
 import androidx.compose.ui.graphics.*
@@ -100,6 +101,7 @@ import com.ireddragonicy.gamespace.gamebar.fps.*
 import com.ireddragonicy.gamespace.gamebar.tiles.*
 import com.ireddragonicy.gamespace.settings.PerAppSettingsActivity
 import com.ireddragonicy.gamespace.thermal.ThermalProfiles
+import com.ireddragonicy.gamespace.data.PerAppSettingStore
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -110,23 +112,19 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-private val RoundedTileShape = RoundedCornerShape(100f)
 
 @Composable
 fun rememberThermalProfile(packageName: String?): MutableState<Int> {
     val context = LocalContext.current
-    val resolver = context.contentResolver
-    val state = remember(packageName) {
-        if (packageName == null) return@remember mutableStateOf(0)
-        val json = Settings.System.getStringForUser(
-            resolver, THERMAL_PROFILE_KEY, UserHandle.USER_CURRENT
-        )
-        val profile = try {
-            if (json != null) org.json.JSONObject(json).optInt(packageName, 0) else 0
-        } catch (_: Exception) { 0 }
-        mutableStateOf(profile)
+    val store = remember { PerAppSettingStore(context) }
+
+    return remember(packageName) {
+        if (packageName == null) {
+            mutableIntStateOf(0)
+        } else {
+            mutableIntStateOf(store.thermalProfile(packageName))
+        }
     }
-    return state
 }
 
 @Composable
@@ -161,25 +159,30 @@ private fun GamePanelCardInner(
     // Game Turbo style: dark glassmorphism card
     Box(
         modifier = Modifier
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {}
-            )
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
             .width(panelWidth)
             .wrapContentHeight()
             .background(LocalPanelAccent.current.copy(alpha = 0.05f), chamferShape())
     ) {
         GamePanelContent(
-            apps = apps,
-            headerExpanded = headerExpanded,
+            apps = apps, headerExpanded = headerExpanded,
             onToggleExpand = { headerExpanded = !headerExpanded },
-            interactor = interactor,
-            fpsInteractor = fpsInteractor,
-            time = time,
-            tileRepository = tileRepository,
-            maxHeight = maxHeight,
+            interactor = interactor, fpsInteractor = fpsInteractor, time = time,
+            tileRepository = tileRepository, maxHeight = maxHeight,
         )
+
+        // ── full-window TOUCH LAB overlay (smooth fade + scale) ───────────
+        val showLab by tileRepository.touchTesterExpanded
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showLab,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+                androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(280, easing = androidx.compose.animation.core.FastOutSlowInEasing), initialScale = 0.92f),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) +
+                androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutLinearInEasing), targetScale = 0.92f),
+            modifier = Modifier.matchParentSize().zIndex(50f),
+        ) {
+            TouchTesterExpanded(tileRepository) { tileRepository.touchTesterExpanded.value = false }
+        }
     }
 }
 
@@ -235,8 +238,7 @@ fun GamePanelContent(
             PanelContent(
                 interactor = interactor,
                 tileRepository = tileRepository,
-                onEditClick = { isEditing = true },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             )
         } else {
             TileEditPanel(

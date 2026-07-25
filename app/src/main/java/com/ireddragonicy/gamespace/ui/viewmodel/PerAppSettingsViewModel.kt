@@ -37,6 +37,8 @@ class PerAppSettingsViewModel @Inject constructor(
     private val gameModeUtils: GameModeUtils
 ) : ViewModel() {
 
+    private val store = PerAppSettingStore(context)
+
     var packageName by mutableStateOf("")
         private set
 
@@ -51,6 +53,10 @@ class PerAppSettingsViewModel @Inject constructor(
         private set
 
     var angleFeatureAvailable by mutableStateOf(false)
+        private set
+
+    // Display style (per-game, shared with the in-game panel header)
+    var displayStyle by mutableIntStateOf(0)
         private set
 
     // Thermal profile (synced with MiThermal mithermal_app_profiles)
@@ -87,6 +93,18 @@ class PerAppSettingsViewModel @Inject constructor(
 
     // Game Color Enhance (per-game toggle)
     var colorEnhanceEnabled by mutableStateOf(false)
+        private set
+
+    // GPU MSAA (Anti-Aliasing): 0=Off, 2=2x, 4=4x
+    var gpuMsaa by mutableIntStateOf(0)
+        private set
+
+    // GPU AF (Anisotropic Filtering): 0=Off, 2=2x, 4=4x, 8=8x, 16=16x
+    var gpuAf by mutableIntStateOf(0)
+        private set
+
+    // GPU Texture Quality: 0=Default, 1=Speed, 2=Balanced, 3=Quality
+    var gpuTexQuality by mutableIntStateOf(0)
         private set
 
     // Touch Tuning (per-game)
@@ -131,25 +149,67 @@ class PerAppSettingsViewModel @Inject constructor(
     // Custom profile base index (must match MiThermalService.CUSTOM_PROFILE_BASE)
     private val customProfileBase = 1000
 
-    // All thermal profiles = built-in + user-created custom profiles
-    val thermalProfileOptions: List<Pair<Int, String>>
-        get() {
-            val list = builtinProfiles.toMutableList()
-            try {
-                val json = Settings.System.getStringForUser(
-                    context.contentResolver,
-                    "mithermal_custom_profiles", UserHandle.USER_CURRENT)
-                if (!json.isNullOrEmpty()) {
-                    val profiles = org.json.JSONArray(json)
-                    for (i in 0 until profiles.length()) {
-                        val profile = profiles.getJSONObject(i)
-                        val name = profile.getString("name")
-                        list.add((customProfileBase + i) to "\u2728 $name")
-                    }
+    // All thermal profiles = built-in + user-created custom profiles.
+    //
+    // Backed by Compose STATE (not a getter) on purpose: when the user creates
+    // a brand-new custom profile from the thermal picker and returns, we
+    // auto-select it, and the row + sheet must reflect it immediately. A plain
+    // getter would stay stale until some unrelated recomposition fired, so a
+    // freshly-saved profile could fail to even show up.
+    var thermalProfileOptions by mutableStateOf<List<Pair<Int, String>>>(emptyList())
+
+    /** id -> dropdown index for custom profiles, rebuilt alongside the options. */
+    private var customIdToIndex: Map<String, Int> = emptyMap()
+
+    private fun computeThermalOptions(): List<Pair<Int, String>> {
+        val list = builtinProfiles.toMutableList()
+        val idMap = mutableMapOf<String, Int>()
+        try {
+            val json = Settings.System.getStringForUser(
+                context.contentResolver,
+                "mithermal_custom_profiles", UserHandle.USER_CURRENT)
+            if (!json.isNullOrEmpty()) {
+                val profiles = org.json.JSONArray(json)
+                for (i in 0 until profiles.length()) {
+                    val profile = profiles.getJSONObject(i)
+                    val name = profile.optString("name", "")
+                    val idx = customProfileBase + i
+                    // No emoji: the UI draws a Material icon for custom profiles,
+                    // exactly like the in-game side panel.
+                    list.add(idx to name)
+                    val id = profile.optString("id", "")
+                    if (id.isNotEmpty()) idMap[id] = idx
                 }
-            } catch (_: Exception) { /* ignore parse errors */ }
-            return list
-        }
+            }
+        } catch (_: Exception) { /* ignore parse errors */ }
+        customIdToIndex = idMap
+        return list
+    }
+
+    /** Re-read custom profiles from Settings into [thermalProfileOptions]. */
+    fun refreshThermalOptions() {
+        thermalProfileOptions = computeThermalOptions()
+    }
+
+    /**
+     * Select a custom profile by its stable id (the editor hands this back on
+     * RESULT_OK). Resolves the id to its current array index, refreshes the
+     * dropdown and applies it to this game in one shot — so a profile the user
+     * just created is both *visible* and *active* when they return, with no
+     * second trip through the picker.
+     */
+    fun selectCustomProfileById(id: String): Boolean {
+        refreshThermalOptions()
+        val idx = customIdToIndex[id] ?: return false
+        updateThermalProfile(idx)
+        return true
+    }
+
+    // Eager first fill so the sheet is never empty on first composition
+    // (also covers the rare case where loadGame() bails out early).
+    init {
+        refreshThermalOptions()
+    }
 
     // Dynamic resolution options — reads native display size from WMS
     val resolutionOptions: List<Pair<String, String>> by lazy {
@@ -205,32 +265,29 @@ class PerAppSettingsViewModel @Inject constructor(
         angleFeatureAvailable = hasAngle && hasVulkan
         angleDriverChoice = gameModeUtils.getAngleDriverChoice(pkg)
 
-        // Load thermal profile from mithermal_app_profiles
-        thermalProfile = loadThermalProfile(pkg)
+        displayStyle = store.displayStyle(pkg)
+        thermalProfile = store.thermalProfile(pkg)
+        gpuComposition = store.gpuComposition(pkg)
+        resolution = store.resolution(pkg)
+        afmeMultiplier = store.afmeMultiplier(pkg)
+        afmeFactor = store.afmeFactor(pkg)
+        sgsrMode = store.sgsrMode(pkg)
+        smoothMotionEnabled = store.smoothMotion(pkg)
+        vrsLevel = store.vrsLevel(pkg)
+        colorEnhanceEnabled = store.colorEnhance(pkg)
+        gpuMsaa = store.gpuMsaa(pkg)
+        gpuAf = store.gpuAf(pkg)
+        gpuTexQuality = store.gpuTexQuality(pkg)
 
-        // Load GPU composition from DISABLE_HW_OVERLAYS_APPS
-        gpuComposition = loadGpuComposition(pkg)
-
-        // Load resolution from gamespace_game_resolution
-        resolution = loadResolution(pkg)
-
-        // Load AFME, SGSR, Smooth Motion, VRS, Color Enhance per-game settings
-        afmeMultiplier = loadAfmeMultiplier(pkg)
-        afmeFactor = loadAfmeFactor(pkg)
-        sgsrMode = loadSgsrMode(pkg)
-        smoothMotionEnabled = loadSmoothMotion(pkg)
-        vrsLevel = loadVrs(pkg)
-        colorEnhanceEnabled = loadColorEnhance(pkg)
-
-        // Load Touch Tuning settings
-        touchSuperReport = loadBoolPref("gamespace_touch_super_report", pkg, true)
-        touchExpertMode = loadBoolPref("gamespace_touch_expert_mode", pkg, false)
-        touchExpertPreset = loadIntPref("gamespace_touch_expert_preset", pkg, 1)
-        touchThreshold = loadIntPref("gamespace_touch_threshold", pkg, 2)
-        touchTolerance = loadIntPref("gamespace_touch_tolerance", pkg, 2)
-        touchAimSens = loadIntPref("gamespace_touch_aim_sens", pkg, 2)
-        touchTapStab = loadIntPref("gamespace_touch_tap_stab", pkg, 2)
-        touchEdgeFilter = loadIntPref("gamespace_touch_edge_filter", pkg, 2)
+        touchSuperReport = store.touchSuperReport(pkg)
+        touchExpertMode = store.touchExpertMode(pkg)
+        touchExpertPreset = store.touchExpertPreset(pkg)
+        touchThreshold = store.touchThreshold(pkg)
+        touchTolerance = store.touchTolerance(pkg)
+        touchAimSens = store.touchAimSens(pkg)
+        touchTapStab = store.touchTapStab(pkg)
+        touchEdgeFilter = store.touchEdgeFilter(pkg)
+        refreshThermalOptions()
     }
 
 
@@ -259,148 +316,71 @@ class PerAppSettingsViewModel @Inject constructor(
         games.removeIf { it.packageName == packageName }
         systemSettings.userGames = games
 
-        // Clean up per-app settings
-        removeThermalProfile(packageName)
-        removeGpuComposition(packageName)
-        removeResolution(packageName)
-        removeAfmeMultiplier(packageName)
-        removeAfmeFactor(packageName)
-        removeSgsrMode(packageName)
-        removeSmoothMotion(packageName)
-        removeVrs(packageName)
-        removeColorEnhance(packageName)
-
-        // Clean up Touch settings
-        removePref("gamespace_touch_super_report", packageName)
-        removePref("gamespace_touch_expert_mode", packageName)
-        removePref("gamespace_touch_expert_preset", packageName)
-        removePref("gamespace_touch_threshold", packageName)
-        removePref("gamespace_touch_tolerance", packageName)
-        removePref("gamespace_touch_aim_sens", packageName)
-        removePref("gamespace_touch_tap_stab", packageName)
-        removePref("gamespace_touch_edge_filter", packageName)
+        store.removeAllForPackage(packageName)
     }
 
-    // ---- Thermal Profile (synced with MiThermal) ----
-
+    // ---- Thermal Profile ----
     fun updateThermalProfile(profileIdx: Int) {
         thermalProfile = profileIdx
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "mithermal_app_profiles", UserHandle.USER_CURRENT) ?: "{}"
-
-        try {
-            val obj = JSONObject(json)
-            if (profileIdx == 0) {
-                obj.remove(packageName) // Follow Global = remove override
-            } else {
-                obj.put(packageName, profileIdx)
-            }
-            Settings.System.putStringForUser(resolver,
-                "mithermal_app_profiles", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
+        store.setThermalProfile(packageName, profileIdx)
     }
 
-    private fun loadThermalProfile(pkg: String): Int {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "mithermal_app_profiles", UserHandle.USER_CURRENT) ?: return 0
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getInt(pkg) else 0
-        } catch (e: Exception) { 0 }
+    // ---- Display Style ----
+    fun updateDisplayStyle(mode: Int) {
+        displayStyle = mode
+        store.setDisplayStyle(packageName, mode)
     }
 
-    private fun removeThermalProfile(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "mithermal_app_profiles", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "mithermal_app_profiles", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- GPU Composition (synced with DisplayManagerService) ----
-
+    // ---- GPU Composition ----
     fun updateGpuComposition(enabled: Boolean) {
         gpuComposition = enabled
-        val resolver = context.contentResolver
-        val current = Settings.Secure.getStringForUser(resolver,
-            Settings.Secure.DISABLE_HW_OVERLAYS_APPS, UserHandle.USER_CURRENT) ?: ""
-        val apps = current.split(",").filter { it.isNotBlank() }.toMutableSet()
-
-        if (enabled) {
-            apps.add(packageName)
-        } else {
-            apps.remove(packageName)
-        }
-
-        Settings.Secure.putStringForUser(resolver,
-            Settings.Secure.DISABLE_HW_OVERLAYS_APPS,
-            apps.joinToString(","), UserHandle.USER_CURRENT)
+        store.setGpuComposition(packageName, enabled)
     }
 
-    private fun loadGpuComposition(pkg: String): Boolean {
-        val current = Settings.Secure.getStringForUser(context.contentResolver,
-            Settings.Secure.DISABLE_HW_OVERLAYS_APPS, UserHandle.USER_CURRENT) ?: ""
-        return current.split(",").contains(pkg)
-    }
-
-    private fun removeGpuComposition(pkg: String) {
-        val resolver = context.contentResolver
-        val current = Settings.Secure.getStringForUser(resolver,
-            Settings.Secure.DISABLE_HW_OVERLAYS_APPS, UserHandle.USER_CURRENT) ?: ""
-        val apps = current.split(",").filter { it.isNotBlank() && it != pkg }
-        Settings.Secure.putStringForUser(resolver,
-            Settings.Secure.DISABLE_HW_OVERLAYS_APPS,
-            apps.joinToString(","), UserHandle.USER_CURRENT)
-    }
-
-    // ---- Resolution (per-game downscale) ----
-
+    // ---- Resolution ----
     fun updateResolution(factor: String) {
         resolution = factor
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_game_resolution", UserHandle.USER_CURRENT) ?: "{}"
-
-        try {
-            val obj = JSONObject(json)
-            if (factor == "1.0") {
-                obj.remove(packageName) // Native = no override
-            } else {
-                obj.put(packageName, factor)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_game_resolution", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
+        store.setResolution(packageName, factor)
     }
 
-    private fun loadResolution(pkg: String): String {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_game_resolution", UserHandle.USER_CURRENT) ?: return "1.0"
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getString(pkg) else "1.0"
-        } catch (e: Exception) { "1.0" }
+    // ---- GPU MSAA & AF ----
+    val gpuMsaaOptions = listOf(
+        0 to "Off",
+        2 to "2× MSAA",
+        4 to "4× MSAA"
+    )
+
+    fun updateGpuMsaa(level: Int) {
+        gpuMsaa = level
+        store.setGpuMsaa(packageName, level)
     }
 
-    private fun removeResolution(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_game_resolution", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_game_resolution", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
+    val gpuAfOptions = listOf(
+        0 to "Off",
+        2 to "2× AF",
+        4 to "4× AF",
+        8 to "8× AF",
+        16 to "16× AF"
+    )
+
+    fun updateGpuAf(level: Int) {
+        gpuAf = level
+        store.setGpuAf(packageName, level)
     }
 
-    // ---- AFME Frame Generation (Multiplier) ----
+    val gpuTexQualityOptions = listOf(
+        0 to "Default",
+        1 to "Speed (Bilinear)",
+        2 to "Balanced",
+        3 to "Quality (Trilinear)"
+    )
 
+    fun updateGpuTexQuality(quality: Int) {
+        gpuTexQuality = quality
+        store.setGpuTexQuality(packageName, quality)
+    }
+
+    // ---- AFME ----
     val afmeMultiplierOptions = listOf(
         0 to "Off",
         2 to "2× Frame Generation",
@@ -410,51 +390,8 @@ class PerAppSettingsViewModel @Inject constructor(
 
     fun updateAfmeMultiplier(multiplier: Int) {
         afmeMultiplier = multiplier
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_afme_multiplier", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            if (multiplier > 0) {
-                obj.put(packageName, multiplier)
-            } else {
-                obj.remove(packageName)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_afme_multiplier", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-
-        // Set system properties that the AFME VK layer reads
-        android.os.SystemProperties.set("persist.sys.afme.enable",
-            if (multiplier > 0) "1" else "0")
-        if (multiplier > 0) {
-            android.os.SystemProperties.set("persist.sys.afme.multiplier",
-                multiplier.toString())
-        }
+        store.setAfmeMultiplier(packageName, multiplier)
     }
-
-    private fun loadAfmeMultiplier(pkg: String): Int {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_afme_multiplier", UserHandle.USER_CURRENT) ?: return 0
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getInt(pkg) else 0
-        } catch (e: Exception) { 0 }
-    }
-
-    private fun removeAfmeMultiplier(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_afme_multiplier", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_afme_multiplier", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- AFME Factor (per-game extrapolation strength) ----
 
     val afmeFactorOptions = listOf(
         "auto" to "Auto (recommended)",
@@ -468,53 +405,10 @@ class PerAppSettingsViewModel @Inject constructor(
 
     fun updateAfmeFactor(factor: String) {
         afmeFactor = factor
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_afme_factor", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            if (factor == "auto") {
-                obj.remove(packageName)
-            } else {
-                obj.put(packageName, factor)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_afme_factor", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-
-        // Set system property for native layer
-        if (factor != "auto") {
-            android.os.SystemProperties.set("persist.sys.afme.factor", factor)
-        } else {
-            // Auto: clear the factor override, layer will compute from multiplier
-            android.os.SystemProperties.set("persist.sys.afme.factor", "")
-        }
+        store.setAfmeFactor(packageName, factor)
     }
 
-    private fun loadAfmeFactor(pkg: String): String {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_afme_factor", UserHandle.USER_CURRENT) ?: return "auto"
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getString(pkg) else "auto"
-        } catch (e: Exception) { "auto" }
-    }
-
-    private fun removeAfmeFactor(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_afme_factor", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_afme_factor", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- Graphics Enhancement mode (per-game) ----
-    // 0=off, 1=SGSR1 Spatial, 2=SGSR2 Temporal, 3=MobFGSR Frame Gen
-
+    // ---- SGSR ----
     val sgsrOptions = listOf(
         0 to "Off",
         1 to "SGSR1 — Adaptive Sharpening",
@@ -524,245 +418,65 @@ class PerAppSettingsViewModel @Inject constructor(
 
     fun updateSgsrMode(mode: Int) {
         sgsrMode = mode
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_sgsr_mode", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            if (mode > 0) {
-                obj.put(packageName, mode)
-            } else {
-                obj.remove(packageName)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_sgsr_mode", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-
-        // Set system properties for native layer
-        android.os.SystemProperties.set("persist.sys.sgsr.enable",
-            if (mode > 0) "1" else "0")
-        if (mode > 0) {
-            android.os.SystemProperties.set("persist.sys.sgsr.mode",
-                mode.toString())
-        }
+        store.setSgsrMode(packageName, mode)
     }
 
-    private fun loadSgsrMode(pkg: String): Int {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_sgsr_mode", UserHandle.USER_CURRENT) ?: return 0
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getInt(pkg) else 0
-        } catch (e: Exception) { 0 }
-    }
-
-    private fun removeSgsrMode(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_sgsr_mode", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_sgsr_mode", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- Smooth Motion (vendor.display.use_smooth_motion + framepacing) ----
-
+    // ---- Smooth Motion ----
     fun updateSmoothMotion(enabled: Boolean) {
         smoothMotionEnabled = enabled
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_smooth_motion", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            obj.put(packageName, enabled)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_smooth_motion", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-
-        // vendor.display.* is sepolicy-protected — apps cannot set it (throws).
-        // init.target.rc forwards persist.sys.afme.smooth_motion to
-        // vendor.display.use_smooth_motion + vendor.perf.framepacing.enable.
-        try {
-            android.os.SystemProperties.set("persist.sys.afme.smooth_motion",
-                if (enabled) "1" else "0")
-        } catch (e: RuntimeException) {
-            android.util.Log.w("PerAppSettings", "smooth motion prop denied: ${e.message}")
-        }
+        store.setSmoothMotion(packageName, enabled)
     }
 
-    private fun loadSmoothMotion(pkg: String): Boolean {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_smooth_motion", UserHandle.USER_CURRENT) ?: return true
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getBoolean(pkg) else true
-        } catch (e: Exception) { true }
-    }
-
-    private fun removeSmoothMotion(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_smooth_motion", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_smooth_motion", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- VRS (Variable Rate Shading) ---- per-game JSON map
-
+    // ---- VRS ----
     fun updateVrs(level: Int) {
         vrsLevel = level
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_vrs_level", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            if (level > 0) {
-                obj.put(packageName, level)
-            } else {
-                obj.remove(packageName)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_vrs_level", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
+        store.setVrsLevel(packageName, level)
     }
 
-    private fun loadVrs(pkg: String): Int {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_vrs_level", UserHandle.USER_CURRENT) ?: return 0
-        return try {
-            val obj = JSONObject(json)
-            if (obj.has(pkg)) obj.getInt(pkg) else 0
-        } catch (e: Exception) { 0 }
-    }
-
-    private fun removeVrs(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_vrs_level", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_vrs_level", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- Game Color Enhance ---- per-game JSON map
-
+    // ---- Color Enhance ----
     fun updateColorEnhance(enabled: Boolean) {
         colorEnhanceEnabled = enabled
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_color_enhance", UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            if (enabled) {
-                obj.put(packageName, true)
-            } else {
-                obj.remove(packageName)
-            }
-            Settings.System.putStringForUser(resolver,
-                "gamespace_color_enhance", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
+        store.setColorEnhance(packageName, enabled)
     }
 
-    private fun loadColorEnhance(pkg: String): Boolean {
-        val json = Settings.System.getStringForUser(context.contentResolver,
-            "gamespace_color_enhance", UserHandle.USER_CURRENT) ?: return false
-        return try {
-            val obj = JSONObject(json)
-            obj.optBoolean(pkg, false)
-        } catch (e: Exception) { false }
-    }
-
-    private fun removeColorEnhance(pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver,
-            "gamespace_color_enhance", UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver,
-                "gamespace_color_enhance", obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    // ---- Generic Helpers for Touch Settings ----
-
-    private fun loadBoolPref(key: String, pkg: String, def: Boolean): Boolean {
-        val json = Settings.System.getStringForUser(context.contentResolver, key, UserHandle.USER_CURRENT) ?: return def
-        return try { JSONObject(json).optBoolean(pkg, def) } catch (e: Exception) { def }
-    }
-
-    private fun loadIntPref(key: String, pkg: String, def: Int): Int {
-        val json = Settings.System.getStringForUser(context.contentResolver, key, UserHandle.USER_CURRENT) ?: return def
-        return try { JSONObject(json).optInt(pkg, def) } catch (e: Exception) { def }
-    }
-
-    private fun updatePref(key: String, value: Any) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver, key, UserHandle.USER_CURRENT) ?: "{}"
-        try {
-            val obj = JSONObject(json)
-            obj.put(packageName, value)
-            Settings.System.putStringForUser(resolver, key, obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
-    private fun removePref(key: String, pkg: String) {
-        val resolver = context.contentResolver
-        val json = Settings.System.getStringForUser(resolver, key, UserHandle.USER_CURRENT) ?: return
-        try {
-            val obj = JSONObject(json)
-            obj.remove(pkg)
-            Settings.System.putStringForUser(resolver, key, obj.toString(), UserHandle.USER_CURRENT)
-        } catch (e: Exception) { /* ignore */ }
-    }
-
+    // ---- Touch Settings ----
     fun updateTouchSuperReport(value: Boolean) {
         touchSuperReport = value
-        updatePref("gamespace_touch_super_report", value)
+        store.setTouchSuperReport(packageName, value)
     }
 
     fun updateTouchExpertMode(value: Boolean) {
         touchExpertMode = value
-        updatePref("gamespace_touch_expert_mode", value)
+        store.setTouchExpertMode(packageName, value)
     }
 
     fun updateTouchExpertPreset(value: Int) {
         touchExpertPreset = value
-        updatePref("gamespace_touch_expert_preset", value)
+        store.setTouchExpertPreset(packageName, value)
     }
 
     fun updateTouchThreshold(value: Int) {
         touchThreshold = value
-        updatePref("gamespace_touch_threshold", value)
+        store.setTouchThreshold(packageName, value)
     }
 
     fun updateTouchTolerance(value: Int) {
         touchTolerance = value
-        updatePref("gamespace_touch_tolerance", value)
+        store.setTouchTolerance(packageName, value)
     }
 
     fun updateTouchAimSens(value: Int) {
         touchAimSens = value
-        updatePref("gamespace_touch_aim_sens", value)
+        store.setTouchAimSens(packageName, value)
     }
 
     fun updateTouchTapStab(value: Int) {
         touchTapStab = value
-        updatePref("gamespace_touch_tap_stab", value)
+        store.setTouchTapStab(packageName, value)
     }
 
     fun updateTouchEdgeFilter(value: Int) {
         touchEdgeFilter = value
-        updatePref("gamespace_touch_edge_filter", value)
+        store.setTouchEdgeFilter(packageName, value)
     }
 }

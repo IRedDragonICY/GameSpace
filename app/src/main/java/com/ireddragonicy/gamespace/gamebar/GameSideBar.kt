@@ -323,6 +323,7 @@ class GameSidebar(
         if (panelShowing) return
         panelShowing = true
         panelDismissing.value = false
+        tileRepository.touchTesterExpanded.value = false
         handler.removeCallbacks(idleRunnable)
         isIdleState.value = false
 
@@ -402,6 +403,14 @@ class GameSidebar(
             panelView = null
         }
         if (::gameBarView.isInitialized) gameBarView.visibility = View.VISIBLE
+    }
+
+    fun bringToFront() {
+        panelView?.let { pv ->
+            if (pv.isAttachedToWindow) {
+                runCatching { wm.updateViewLayout(pv, panelLayoutParam) }
+            }
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────
@@ -487,6 +496,7 @@ class GameSidebar(
         )
 
         val isBlurEnabled by tileRepository.isBlurEnabled
+        val blurRadius by tileRepository.blurRadius
 
 
         val density = LocalDensity.current
@@ -522,12 +532,19 @@ class GameSidebar(
         ) {
             val panelShape = remember { chamferShape() }
 
+            // ── KUNCI FIX ────────────────────────────────────────────────────────
+            // Read state in COMPOSITION scope (not inside AndroidView lambdas)
+            // so Compose registers the observer, triggering recomposition when sliders move.
+            val blurOn = isBlurEnabled
+            val radius = blurRadius
+            // ─────────────────────────────────────────────────────────────────────
+
             Box(
                 // PERF KEY: clip BEFORE blur so the GPU never blurs outside the panel
                 modifier = modifier.clip(panelShape)
             ) {
                 // 1. HARDWARE ACCELERATED BLUR
-                if (isBlurEnabled) {
+                if (blurOn) {
                     AndroidView(
                         factory = { ctx ->
                             android.view.View(ctx).apply {
@@ -538,8 +555,7 @@ class GameSidebar(
                                     override fun onViewAttachedToWindow(v: android.view.View) {
                                         try {
                                             v.viewRootImpl?.createBackgroundBlurDrawable()?.let { drawable ->
-                                                // Radius 50 is enough for the glass effect; higher lags
-                                                drawable.setBlurRadius(50)
+                                                drawable.setBlurRadius(radius)
                                                 drawable.setCornerRadius(with(density) { 12.dp.toPx() })
                                                 v.background = drawable
                                             }
@@ -550,6 +566,10 @@ class GameSidebar(
                                     override fun onViewDetachedFromWindow(v: android.view.View) {}
                                 })
                             }
+                        },
+                        update = { view ->
+                            (view.background as? BackgroundBlurDrawable)?.setBlurRadius(radius)
+                            view.invalidate()
                         },
                         // The blur view must only cover this box
                         modifier = Modifier.matchParentSize()
@@ -673,6 +693,7 @@ class GameSidebar(
                     }
                 }
             }
+
         }
     }
 

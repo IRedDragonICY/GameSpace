@@ -31,7 +31,7 @@ import android.media.AudioSystem
 import android.net.Uri
 import android.provider.ContactsContract
 import android.telecom.TelecomManager
-import android.telephony.PhoneStateListener 
+import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import android.view.Gravity
 import android.view.WindowManager
@@ -85,10 +85,9 @@ class CallListener @Inject constructor(
     private var ringerOverlay: ComposeView? = null
     private var isOverlayShowing = false
 
-    @Suppress("DEPRECATION")
-    private val phoneStateListener = object : PhoneStateListener() {
-        override fun onCallStateChanged(state: Int, incomingNumber: String?) {
-            val number = incomingNumber.orEmpty()
+    private val telephonyCallback = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+        override fun onCallStateChanged(state: Int) {
+            val number = "" // No longer provided in TelephonyCallback
             when (state) {
                 TelephonyManager.CALL_STATE_RINGING -> handleIncomingCall(number)
                 TelephonyManager.CALL_STATE_OFFHOOK -> handleOffhookState()
@@ -99,19 +98,14 @@ class CallListener @Inject constructor(
 
     fun init() {
         previousAudioMode = audioManager.mode
-        @Suppress("DEPRECATION")
-        telephonyManager.listen(
-            phoneStateListener,
-            PhoneStateListener.LISTEN_CALL_STATE
+        telephonyManager.registerTelephonyCallback(
+            context.mainExecutor,
+            telephonyCallback
         )
     }
 
     fun destroy() {
-        @Suppress("DEPRECATION")
-        telephonyManager.listen(
-            phoneStateListener,
-            PhoneStateListener.LISTEN_NONE
-        )
+        telephonyManager.unregisterTelephonyCallback(telephonyCallback)
         dismissRingerOverlay(immediate = true)
     }
 

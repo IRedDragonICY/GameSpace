@@ -24,12 +24,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import com.ireddragonicy.gamespace.data.AppSettings
 import com.ireddragonicy.gamespace.data.GameSession
-import com.ireddragonicy.gamespace.data.SystemSettings
 import com.ireddragonicy.gamespace.gamebar.brightness.*
 import com.ireddragonicy.gamespace.gamebar.fps.FpsInteractor
 import com.ireddragonicy.gamespace.gamebar.tiles.TileRepository
 import com.ireddragonicy.gamespace.data.fpsstats.FpsStatsCollector
 import com.ireddragonicy.gamespace.data.fpsstats.FpsStatsRepository
+import com.ireddragonicy.gamespace.data.SystemSettings
+import com.ireddragonicy.gamespace.telemetry.TelemetryBus
 import com.ireddragonicy.gamespace.utils.GameModeUtils
 import com.ireddragonicy.gamespace.utils.ScreenUtils
 import javax.inject.Singleton
@@ -96,7 +97,8 @@ object MainModule {
     fun provideFpsStatsCollector(
         @ApplicationContext context: Context,
         fpsInteractor: FpsInteractor,
-    ): FpsStatsCollector = FpsStatsCollector(context, fpsInteractor)
+        bus: TelemetryBus,
+    ): FpsStatsCollector = FpsStatsCollector(context, fpsInteractor, bus)
 
     @Provides
     @Singleton

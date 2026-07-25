@@ -86,39 +86,28 @@ fun TunerEntryRow(
 
     // Compact pill — sits beside the thermal + display pills; opens the tabbed
     // tuner page (swaps the whole panel content, so the panel never scrolls).
-    Row(
+    // Icon-only button to save space
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(28.dp)
+            .size(28.dp)
             .background(Color.White.copy(alpha = 0.05f), remember { RoundedCornerShape(8.dp) })
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clickable(onClick = onOpen),
+        contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(R.drawable.materialsymbols_ic_tune_rounded_filled),
-            contentDescription = null,
+            contentDescription = stringResource(R.string.tuner_title),
             tint = accent,
-            modifier = Modifier.size(12.dp),
+            modifier = Modifier.size(16.dp),
         )
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(
-            text = stringResource(R.string.tuner_title),
-            color = accent,
-            fontSize = 9.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        // Status as a colored dot — accent = CUSTOM, dim = STOCK — so it can
-        // never collide with the label.
+        // Status as a colored dot in the top right corner
         Box(
             modifier = Modifier
-                .size(5.dp)
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(4.dp)
                 .background(
-                    if (profile.isDefault) PanelTheme.TextDim else accent,
+                    if (profile.isDefault) Color.Transparent else accent,
                     CircleShape,
                 ),
         )

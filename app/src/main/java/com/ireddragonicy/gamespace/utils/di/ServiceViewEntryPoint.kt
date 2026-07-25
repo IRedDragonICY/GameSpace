@@ -18,4 +18,5 @@ interface ServiceViewEntryPoint {
     fun screenUtils(): ScreenUtils
     fun gameModeUtils(): GameModeUtils
     fun perfTuner(): PerfTuner
+    fun telemetryBus(): com.ireddragonicy.gamespace.telemetry.TelemetryBus
 }

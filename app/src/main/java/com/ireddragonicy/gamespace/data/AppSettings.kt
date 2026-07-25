@@ -63,6 +63,10 @@ class AppSettings @Inject constructor(private val context: Context) {
         get() = db.getBoolean(KEY_ENABLE_BLUR, true)
         set(value) = db.edit().putBoolean(KEY_ENABLE_BLUR, value).apply()
 
+    var blurRadius: Int
+        get() = db.getInt(KEY_BLUR_RADIUS, 50)
+        set(value) = db.edit().putInt(KEY_BLUR_RADIUS, value).apply()
+
     var ringerMode: Int
         get() = db.getString(KEY_RINGER_MODE, "3")?.toIntOrNull() ?: 3
         set(value) = db.edit().putString(KEY_RINGER_MODE, value.toString()).apply()
@@ -135,6 +139,7 @@ class AppSettings @Inject constructor(private val context: Context) {
         const val KEY_DANMAKU_NOTIFICATION_MODE = "gamespace_danmaku_notification_mode"
         const val KEY_CALLS_MODE = "gamespace_calls_mode"
         const val KEY_ENABLE_BLUR = "gamespace_enable_blur"
+        const val KEY_BLUR_RADIUS = "gamespace_blur_radius"
         const val KEY_RINGER_MODE = "gamespace_ringer_mode"
         const val KEY_LOCK_GESTURE = "gamespace_lock_gesture"
         const val KEY_MENU_OPACITY = "gamespace_menu_opacity"

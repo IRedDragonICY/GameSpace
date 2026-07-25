@@ -110,6 +110,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+// Removed duplicate SettingsTab and SettingsTabRow
+
 @Composable
 fun TileEditPanel(
     tileRepository: TileRepository,
@@ -149,11 +151,17 @@ fun TileEditPanel(
             } else if (targetZone == DragZone.None) {
                 availableList.add(targetIndex.coerceIn(0, availableList.size), tile.copy(sourceZone = DragZone.None))
             }
+
+            // Auto-save on drop
+            tileRepository.updateQuickToggles(quickToggleList.map { it.id })
+            tileRepository.updateTileSelection(toolTileList.map { it.id })
         }
     }
 
     var boxWindowPosition by remember { mutableStateOf(Offset.Zero) }
     val localMaxHeight = (LocalConfiguration.current.screenHeightDp - 64).dp
+    var selectedTab by remember { mutableStateOf(SettingsTab.GENERAL) }
+    val accent = LocalPanelAccent.current
 
     Box(modifier = Modifier.fillMaxWidth().onGloballyPositioned { boxWindowPosition = it.positionInWindow() }) {
         Column(
@@ -162,39 +170,47 @@ fun TileEditPanel(
                 .heightIn(max = localMaxHeight)
                 .padding(top = 4.dp, start = 12.dp, end = 12.dp, bottom = 12.dp)
         ) {
-            // Header with back + save
+            // Header with back + title
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Button(
-                    onClick = {
-                        tileRepository.updateQuickToggles(quickToggleList.map { it.id })
-                        tileRepository.updateTileSelection(toolTileList.map { it.id })
-                        onClose()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = LocalPanelAccent.current,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
-                ) {
-                    Text(stringResource(R.string.save))
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Back",
+                    tint = PanelTheme.TextPrimary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(onClick = onClose),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "SETTINGS",
+                    color = accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 3.sp,
+                )
             }
+            
+            Spacer(modifier = Modifier.height(6.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
+            SettingsTabRow(
+                selected = selectedTab,
+                accent = accent,
+                onSelect = { selectedTab = it },
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+
+            when (selectedTab) {
+                SettingsTab.GENERAL -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -280,6 +296,24 @@ fun TileEditPanel(
                         checked = tileRepository.isBlurEnabled.value,
                         onCheckedChange = { tileRepository.setBlurEnabled(it) }
                     )
+
+                    if (tileRepository.isBlurEnabled.value) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Radius", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Slider(
+                                value = tileRepository.blurRadius.value.toFloat(),
+                                onValueChange = { tileRepository.setBlurRadius(it.toInt()) },
+                                valueRange = 10f..100f,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("${tileRepository.blurRadius.value}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -535,7 +569,12 @@ fun TileEditPanel(
                                 }
                             }
                         }
+                        }
                     }
+                } // End scrollable column
+                } // End GENERAL
+                SettingsTab.MONITORS -> {
+                    MonitorsTab(tileRepository)
                 }
             }
         }
@@ -601,6 +640,54 @@ fun EditorGameTile(
                 lineHeight = 9.sp,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+    }
+}
+
+@Composable
+fun MonitorsTab(tileRepository: TileRepository) {
+    val settings = tileRepository.monitorSettings
+    if (settings == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Monitor service unavailable", color = PanelTheme.TextDim, fontSize = 12.sp)
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text("CLASSICAL MONITOR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(4.dp))
+        Column(modifier = Modifier.background(LocalPanelAccent.current.copy(alpha = 0.08f), RoundedCornerShape(12.dp)).padding(12.dp)) {
+            SettingToggleRow("Show CPU", settings.classicalShowCpu, onCheckedChange = { settings.classicalShowCpu = it })
+            SettingToggleRow("Show GPU", settings.classicalShowGpu, onCheckedChange = { settings.classicalShowGpu = it })
+            SettingToggleRow("Show RAM", settings.classicalShowRam, onCheckedChange = { settings.classicalShowRam = it })
+            SettingToggleRow("Show FPS", settings.classicalShowFps, onCheckedChange = { settings.classicalShowFps = it })
+            SettingToggleRow("Show Temperature & Power", settings.classicalShowTemp, onCheckedChange = { settings.classicalShowTemp = it })
+        }
+
+        Spacer(Modifier.height(12.dp))
+        
+        Text("MINI MONITOR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(4.dp))
+        Column(modifier = Modifier.background(LocalPanelAccent.current.copy(alpha = 0.08f), RoundedCornerShape(12.dp)).padding(12.dp)) {
+            SettingToggleRow("Show CPU", settings.miniShowCpu, onCheckedChange = { settings.miniShowCpu = it })
+            SettingToggleRow("Show GPU", settings.miniShowGpu, onCheckedChange = { settings.miniShowGpu = it })
+            SettingToggleRow("Show Battery/FPS", settings.miniShowFps, onCheckedChange = { settings.miniShowFps = it })
+            SettingToggleRow("Show Temperature", settings.miniShowRam, onCheckedChange = { settings.miniShowRam = it })
+        }
+
+        Spacer(Modifier.height(12.dp))
+        
+        Text("TEMPERATURE MONITOR", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(4.dp))
+        Column(modifier = Modifier.background(LocalPanelAccent.current.copy(alpha = 0.08f), RoundedCornerShape(12.dp)).padding(12.dp)) {
+            SettingToggleRow("Show CPU Temperature", settings.tempShowCpu, onCheckedChange = { settings.tempShowCpu = it })
+            SettingToggleRow("Show GPU Temperature", settings.tempShowGpu, onCheckedChange = { settings.tempShowGpu = it })
+            SettingToggleRow("Show Battery Temperature", settings.tempShowBattery, onCheckedChange = { settings.tempShowBattery = it })
         }
     }
 }

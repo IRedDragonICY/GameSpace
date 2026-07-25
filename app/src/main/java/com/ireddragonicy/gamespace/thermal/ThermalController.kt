@@ -66,6 +66,7 @@ class ThermalController @Inject constructor(
     // ── Cached settings ─────────────────────────────────────────────────────
     private var thermalProfile = 0
     private var tempLimit = ThermalProfiles.DEFAULT_TEMP_LIMIT_DECI_C
+    private var tempOffset = 0 // Feature B: aggressiveness headroom, signed deci-°C
     private var chargeMaxWatt = ThermalProfiles.MAX_WATT
     private var chargeMinWatt = ThermalProfiles.MIN_WATT
     private val appProfiles = HashMap<String, Int>()
@@ -139,6 +140,7 @@ class ThermalController @Inject constructor(
             ThermalProfiles.PROP_MIN_FCC,
             (chargeMinWatt * ThermalProfiles.UA_PER_WATT).toString()
         )
+        SystemProperties.set(ThermalProfiles.PROP_TEMP_OFFSET, tempOffset.toString())
 
         applyAll()
     }
@@ -163,6 +165,9 @@ class ThermalController @Inject constructor(
         ).coerceIn(ThermalProfiles.MIN_WATT, chargeMaxWatt)
         if (tempLimit !in 250..480) tempLimit = ThermalProfiles.DEFAULT_TEMP_LIMIT_DECI_C
         if (!ThermalProfiles.isValidIndex(thermalProfile)) thermalProfile = 0
+        tempOffset = Settings.System.getIntForUser(
+            resolver, ThermalProfiles.KEY_TEMP_OFFSET, 0, UserHandle.USER_CURRENT
+        ).coerceIn(-150, 150) // ±15.0°C in deci-°C
     }
 
     private fun loadAppProfiles() {
@@ -213,25 +218,30 @@ class ThermalController @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun onForegroundChanged(uid: Int) {
-        val packages = context.packageManager.getPackagesForUid(uid) ?: return
-        if (packages.isEmpty()) return
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val tasks = am.getRunningTasks(1)
+        val topPackage = tasks.firstOrNull()?.topActivity?.packageName ?: return
 
-        for (pkg in packages) {
-            val profileIdx = appProfiles[pkg] ?: continue
-            if (pkg != foregroundPackage) {
-                foregroundPackage = pkg
-                if (!batterySaverActive) applyProfileIndex(profileIdx)
-                Log.i(TAG, "App foreground: $pkg → profile index $profileIdx")
+        val profileIdx = appProfiles[topPackage]
+
+        if (topPackage != foregroundPackage) {
+            foregroundPackage = topPackage
+            if (!batterySaverActive) {
+                if (profileIdx != null) {
+                    applyProfileIndex(profileIdx)
+                    Log.i(TAG, "App foreground: $topPackage → profile index $profileIdx")
+                } else {
+                    applyGlobalProfile()
+                    Log.i(TAG, "App foreground: $topPackage → global profile")
+                }
             }
-            return
-        }
-
-        // No per-app profile — return to global default if we were on an override
-        if (foregroundPackage.isNotEmpty() && appProfiles.containsKey(foregroundPackage)) {
-            foregroundPackage = packages[0]
-            if (!batterySaverActive) applyGlobalProfile()
-            Log.i(TAG, "App foreground: $foregroundPackage → global profile")
+        } else {
+            // Re-apply if the configuration was changed dynamically
+            if (!batterySaverActive && profileIdx != null && activeProfileIndex != profileIdx) {
+                applyProfileIndex(profileIdx)
+            }
         }
     }
 
@@ -240,6 +250,7 @@ class ThermalController @Inject constructor(
     private fun applyAll() {
         if (!batterySaverActive) applyGlobalProfile()
         applyTempLimit()
+        applyTempOffset()
         applyChargeSpeed()
         applyBypassCharging()
         applyHbm()
@@ -329,16 +340,29 @@ class ThermalController @Inject constructor(
             chunks.forEachIndexed { i, chunk ->
                 SystemProperties.set("${ThermalProfiles.PROP_CUSTOM_CHUNK_PREFIX}$i", chunk)
             }
+            // Extended knobs (Features A/C/D) — write BEFORE the seq bump so the
+            // daemon never re-reads a half-updated set (same torn-read guard as
+            // the cluster chunks).
+            SystemProperties.set(ThermalProfiles.PROP_CUSTOM_GPU, serializeGpu(profile))
+            SystemProperties.set(ThermalProfiles.PROP_CUSTOM_MON, serializeMonitor(profile))
+            SystemProperties.set(ThermalProfiles.PROP_CUSTOM_SIC, serializeSic(profile))
             SystemProperties.set(ThermalProfiles.PROP_CUSTOM_COUNT, chunks.size.toString())
             SystemProperties.set(ThermalProfiles.PROP_CUSTOM_SEQ, (++customSeq).toString())
             SystemProperties.set(ThermalProfiles.PROP_SS_PROFILE, "custom")
 
-            // sconfig=0: default vendor thermal; the Rust SS algo owns CPU freq
-            KernelNodeIO.write(ThermalNodes.SCONFIG, 0)
+            // Custom profiles use the Performance vendor-thermal scene (sconfig=6),
+            // NOT the default scene (0). sconfig=0 keeps the vendor thermal HAL's
+            // own aggressive CPU throttling active, which double-throttled on top
+            // of the Rust SS daemon — so a "no limit" custom still got throttled.
+            // The relaxed scene lets the Rust daemon be the sole authority over
+            // scaling_max_freq per the user's custom levels. Frame/sched boost is
+            // enabled like the other gaming profiles.
+            val customSconfig = ThermalProfiles.PROFILE_SCONFIG[ThermalProfiles.PROFILE_PERFORMANCE]
+            KernelNodeIO.write(ThermalNodes.SCONFIG, customSconfig)
             KernelNodeIO.write(ThermalNodes.POWERSAVE_MODE, "0")
-            appliedSconfig = 0
+            appliedSconfig = customSconfig
             activeProfileIndex = ThermalProfiles.CUSTOM_PROFILE_BASE + arrayIndex
-            applyGameBoost(false)
+            applyGameBoost(true)
 
             Log.i(
                 TAG, "Custom profile '${profile.optString("name")}'" +
@@ -349,6 +373,38 @@ class ThermalController @Inject constructor(
             Log.e(TAG, "Failed to apply custom profile #$arrayIndex", e)
             false
         }
+    }
+
+    /**
+     * Serialize a custom profile's GPU throttle curve (Feature A) to the daemon
+     * CSV "trigMc,clrMc,freqMHz;…". Freq is stored MHz to fit the 88-byte prop
+     * cap (the daemon multiplies back to Hz). Empty string = no GPU throttle.
+     */
+    private fun serializeGpu(profile: JSONObject): String {
+        val gpu = profile.optJSONArray("gpu") ?: return ""
+        val sb = StringBuilder()
+        val n = minOf(gpu.length(), ThermalProfiles.CUSTOM_GPU_MAX)
+        for (i in 0 until n) {
+            val lv = gpu.optJSONObject(i) ?: continue
+            val trig = lv.optInt("trig")
+            val freqMhz = lv.optInt("freq") // stored in MHz by the editor
+            if (trig <= 0 || freqMhz <= 0) continue
+            if (sb.isNotEmpty()) sb.append(';')
+            sb.append(trig).append(',').append(lv.optInt("clr")).append(',').append(freqMhz)
+        }
+        return sb.toString()
+    }
+
+    /** Serialize monitor thresholds (Feature C): "boost,hotplug,bl,blcap" (mC; 0 = unset). */
+    private fun serializeMonitor(profile: JSONObject): String {
+        val m = profile.optJSONObject("monitor") ?: return ""
+        return "${m.optInt("boost")},${m.optInt("hotplug")},${m.optInt("bl")},${m.optInt("blcap")}"
+    }
+
+    /** Serialize SIC overrides (Feature D): "targetMc,maxFccUa" (0 = use global). */
+    private fun serializeSic(profile: JSONObject): String {
+        val s = profile.optJSONObject("sic") ?: return ""
+        return "${s.optInt("target")},${s.optInt("maxfcc")}"
     }
 
     /**
@@ -376,6 +432,10 @@ class ThermalController @Inject constructor(
 
     private fun applyTempLimit() {
         SystemProperties.set(ThermalProfiles.PROP_TEMP_LIMIT, tempLimit.toString())
+    }
+
+    private fun applyTempOffset() {
+        SystemProperties.set(ThermalProfiles.PROP_TEMP_OFFSET, tempOffset.toString())
     }
 
     private fun applyChargeSpeed() {
@@ -571,6 +631,7 @@ class ThermalController @Inject constructor(
         arrayOf(
             ThermalProfiles.KEY_THERMAL_PROFILE,
             ThermalProfiles.KEY_TEMP_LIMIT,
+            ThermalProfiles.KEY_TEMP_OFFSET,
             ThermalProfiles.KEY_CHARGE_MAX_WATT,
             ThermalProfiles.KEY_CHARGE_MIN_WATT,
             ThermalProfiles.KEY_APP_PROFILES,

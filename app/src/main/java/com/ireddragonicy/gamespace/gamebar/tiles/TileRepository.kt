@@ -183,7 +183,11 @@ class TileRepository @Inject constructor(
     val isBrightnessVisible: MutableState<Boolean> = mutableStateOf(appSettings.brightnessEnabled)
     val isFpsGraphVisible: MutableState<Boolean> = mutableStateOf(appSettings.fpsGraphEnabled)
     val isBlurEnabled: MutableState<Boolean> = mutableStateOf(appSettings.enableBlur)
+    val blurRadius: MutableState<Int> = mutableStateOf(appSettings.blurRadius)
 
+    /** Floating Monitor Overlay */
+    var monitorSettings: com.ireddragonicy.gamespace.gamebar.monitor.MonitorSettings? = null
+    var monitorOverlayManager: com.ireddragonicy.gamespace.gamebar.monitor.MonitorOverlayManager? = null
     /** When true, GameSideBar clears FLAG_NOT_FOCUSABLE so keyboard can show */
     val keyboardFocusRequested: MutableState<Boolean> = mutableStateOf(false)
     fun init(platform: AxPlatformClient) {
@@ -257,8 +261,13 @@ class TileRepository @Inject constructor(
     }
 
     fun setBlurEnabled(enabled: Boolean) {
-        isBlurEnabled.value = enabled
         appSettings.enableBlur = enabled
+        isBlurEnabled.value = enabled
+    }
+
+    fun setBlurRadius(radius: Int) {
+        appSettings.blurRadius = radius
+        blurRadius.value = radius
     }
 
     fun setFpsGraphEnabled(enabled: Boolean) {
@@ -783,6 +792,8 @@ class TileRepository @Inject constructor(
 
     /** Callback set by GameSidebar to start/stop FPS Stats recording */
     var onFpsStatsToggle: ((Boolean) -> Unit)? = null
+    
+    var bringSidebarToFront: (() -> Unit)? = null
 
     /** Game session start time (SystemClock.elapsedRealtime). Set by SessionService. */
     var sessionStartTimeMs: Long = 0L
@@ -824,4 +835,5 @@ class TileRepository @Inject constructor(
 
     /** Toggle for the full-page PERF TUNER view (replaces panel content — no scrolling) */
     val showPerfTuner = mutableStateOf(false)
+    val touchTesterExpanded = mutableStateOf(false)
 }

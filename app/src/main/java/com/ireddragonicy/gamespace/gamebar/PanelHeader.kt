@@ -110,6 +110,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+import com.ireddragonicy.gamespace.data.PerAppSettingStore
+
 @Composable
 fun HeaderInfoBar(
     modifier: Modifier = Modifier,
@@ -121,7 +123,7 @@ fun HeaderInfoBar(
     tileRepository: TileRepository,
     currentGamePackage: String? = null,
 ) {
-    val batteryInfo = rememberBatteryInfo()
+    val t = rememberTelemetry()
     val thermalProfile = rememberThermalProfile(currentGamePackage)
     val context = LocalContext.current
 
@@ -288,7 +290,7 @@ fun HeaderInfoBar(
 
             Spacer(modifier = Modifier.weight(1f))
             // Battery with charging bolt, wattage, temp — TAP to toggle bypass charging
-            val batteryInfo = rememberBatteryInfo()
+            val t = rememberTelemetry()
             val bypassEnabled = remember { mutableStateOf(false) }
 
             // Read bypass charging state (uses mithermal key — MiThermalService writes smart_night sysfs)
@@ -338,7 +340,7 @@ fun HeaderInfoBar(
                     .height(20.dp),  // Fixed height prevents layout shift when BP badge appears
             ) {
                 // Charging bolt — always rendered (reserves space) to prevent layout shift
-                val showBolt = batteryInfo.isCharging || bypassEnabled.value
+                val showBolt = t.batteryCharging || bypassEnabled.value
                 val infiniteTransition = rememberInfiniteTransition(label = "bolt_pulse")
                 val boltAlpha by infiniteTransition.animateFloat(
                     initialValue = 0.6f,
@@ -360,11 +362,11 @@ fun HeaderInfoBar(
                 )
                 Spacer(modifier = Modifier.width(2.dp))
                 val batteryIcon = when {
-                    batteryInfo.level >= 90 -> painterResource(R.drawable.materialsymbols_ic_battery_android_full_rounded_filled)
-                    batteryInfo.level >= 70 -> painterResource(R.drawable.materialsymbols_ic_battery_android_4_rounded_filled)
-                    batteryInfo.level >= 50 -> painterResource(R.drawable.materialsymbols_ic_battery_android_3_rounded_filled)
-                    batteryInfo.level >= 30 -> painterResource(R.drawable.materialsymbols_ic_battery_android_2_rounded_filled)
-                    batteryInfo.level >= 10 -> painterResource(R.drawable.materialsymbols_ic_battery_android_1_rounded_filled)
+                    t.batteryCapacity >= 90 -> painterResource(R.drawable.materialsymbols_ic_battery_android_full_rounded_filled)
+                    t.batteryCapacity >= 70 -> painterResource(R.drawable.materialsymbols_ic_battery_android_4_rounded_filled)
+                    t.batteryCapacity >= 50 -> painterResource(R.drawable.materialsymbols_ic_battery_android_3_rounded_filled)
+                    t.batteryCapacity >= 30 -> painterResource(R.drawable.materialsymbols_ic_battery_android_2_rounded_filled)
+                    t.batteryCapacity >= 10 -> painterResource(R.drawable.materialsymbols_ic_battery_android_1_rounded_filled)
                     else -> painterResource(R.drawable.materialsymbols_ic_battery_android_0_rounded_filled)
                 }
                 Icon(
@@ -373,25 +375,27 @@ fun HeaderInfoBar(
                     modifier = Modifier.size(14.dp),
                     tint = when {
                         bypassEnabled.value -> Color(0xFFFF9800)
-                        batteryInfo.level > 20 -> LocalPanelAccent.current
+                        t.batteryCapacity > 20 -> LocalPanelAccent.current
                         else -> PanelRed
                     },
                 )
                 Text(
-                    text = "${batteryInfo.level}%",
+                    text = "${t.batteryCapacity}%",
                     style = MaterialTheme.typography.bodySmall,
                     color = PanelTextPrimary,
                     fontSize = 12.sp
                 )
-                // Wattage display: +X.XW (charging) / -X.XW (discharging)
-                if (batteryInfo.wattage != 0f) {
-                    val wattText = if (batteryInfo.isCharging)
-                        "+%.1fW".format(batteryInfo.wattage)
+                // Wattage display: +X.XW (charging) / -X.XW (discharging).
+                // batteryPowerW is an unsigned magnitude, so the sign comes from
+                // the (now correct) charging flag.
+                if (t.batteryPowerW != 0f) {
+                    val wattText = if (t.batteryCharging)
+                        "+%.1fW".format(t.batteryPowerW)
                     else
-                        "%.1fW".format(batteryInfo.wattage)
+                        "-%.1fW".format(t.batteryPowerW)
                     val wattColor = when {
                         bypassEnabled.value -> Color(0xFFFF9800)
-                        batteryInfo.isCharging -> Color(0xFF4CAF50)
+                        t.batteryCharging -> Color(0xFF4CAF50)
                         else -> LocalPanelAccent.current.copy(alpha = 0.7f)
                     }
                     Text(
@@ -403,14 +407,14 @@ fun HeaderInfoBar(
                     )
                 }
                 // Battery temp with battery-specific thresholds
-                if (batteryInfo.temperatureC > 0f) {
+                if (t.batteryTempC > 0f) {
                     val battTempColor by animateColorAsState(
-                        targetValue = batteryTempColor(batteryInfo.temperatureC),
+                        targetValue = batteryTempColor(t.batteryTempC),
                         animationSpec = tween(500),
                         label = "batt_temp_color"
                     )
                     Text(
-                        text = " %.0f°C".format(batteryInfo.temperatureC),
+                        text = " %.0f°C".format(t.batteryTempC),
                         style = MaterialTheme.typography.bodySmall,
                         color = battTempColor,
                         fontSize = 10.sp,
@@ -470,89 +474,53 @@ fun HeaderInfoBar(
         // ── FPS Circle Gauge + CPU/GPU (tap to expand individual graphs) ──
         val realHistory by fpsInteractor.realFpsHistory.collectAsState(initial = emptyList())
         val currentFps = realHistory.lastOrNull()?.toInt() ?: 0
-        val avgFps = if (realHistory.isNotEmpty()) realHistory.average().toInt() else 0
 
         var selectedMetric by remember { mutableStateOf<String?>(null) }
         val selectMetric: (String?) -> Unit = { selectedMetric = it }
-
-        // GPU state — hoisted to parent level for shared access between display and graph
-        val gpuUsage = rememberGpuUsage()
-        val gpuFreq = rememberGpuFrequency()
-        val gpuTemp = rememberSysfsTemp("/sys/class/thermal/thermal_zone24/temp")
-
-        // GPU history — hoisted to parent level so it persists across AnimatedVisibility show/hide
-        // (same pattern as FPS: FpsInteractor holds history at service level)
-        val gpuHistory = remember { mutableStateListOf<Int>() }
-        val gpuMaxSamples = 30
-
-        // Collect GPU history continuously (not inside AnimatedVisibility)
-        LaunchedEffect(Unit) {
-            while (true) {
-                kotlinx.coroutines.delay(1000L)
-                val current = gpuUsage.value
-                if (gpuHistory.size >= gpuMaxSamples) {
-                    gpuHistory.removeAt(0)
-                }
-                gpuHistory.add(current)
-            }
-        }
 
         // ── ROG telemetry strip: CPU cell · FPS core · GPU cell ──
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val cpuUsage = rememberCpuUsage()
-            val cpuFreq = rememberCpuFrequency()
-            val cpuTemp = rememberSysfsTemp("/sys/class/thermal/thermal_zone9/temp")
-            val cpuTColor by animateColorAsState(
-                targetValue = cpuTempColor(cpuTemp.value),
-                animationSpec = tween(500), label = "cpu_tc"
-            )
+            val cpuTColor by animateColorAsState(heatColor(t.cpuHeat), tween(500), "cpu_tc")
             TelemetryCell(
                 label = "CPU",
-                valueText = "${cpuUsage.value}%",
-                ratio = cpuUsage.value / 100f,
+                valueText = "${t.cpuUsageTotal}%",
+                ratio = t.cpuUsageTotal / 100f,
                 accent = LocalPanelAccent.current,
-                detail1 = cpuFreq.value,
-                detail2 = "%.1f°C".format(cpuTemp.value),
+                detail1 = run {
+                    val k = t.cpuFreqMaxKhz
+                    if (k >= 1_000_000) "%.1f GHz".format(k / 1_000_000.0) else "${k / 1000} MHz"
+                },
+                detail2 = "%.1f°C".format(t.cpuTempC),
                 detail2Color = cpuTColor,
                 selected = selectedMetric == "cpu",
                 onClick = { selectMetric(if (selectedMetric == "cpu") null else "cpu") },
             )
-
             val maxFps by fpsInteractor.dynamicMaxFps.collectAsState()
-            val isCpuThrottled by rememberCpuThrottle()
+            val thermalReduced = t.thermalHeadroomReduced
             FpsGauge(
                 fps = currentFps,
                 maxFps = maxFps,
                 labelText = if (selectedMetric == "frametime") "FT" else "FPS",
-                throttled = isCpuThrottled,
+                throttled = thermalReduced && currentFps < maxFps * 0.9f,
                 accent = LocalPanelAccent.current,
                 onClick = {
-                    selectMetric(
-                        when (selectedMetric) {
-                            null -> "fps"
-                            "fps" -> "frametime"
-                            "frametime" -> null
-                            else -> "fps"
-                        }
-                    )
+                    selectMetric(when (selectedMetric) {
+                        null -> "fps"; "fps" -> "frametime"; "frametime" -> null; else -> "fps"
+                    })
                 },
             )
-
-            val gpuTColor by animateColorAsState(
-                targetValue = gpuTempColor(gpuTemp.value),
-                animationSpec = tween(500), label = "gpu_tc"
-            )
+            val gpuTColor by animateColorAsState(heatColor(t.gpuHeat), tween(500), "gpu_tc")
             TelemetryCell(
                 label = "GPU",
-                valueText = "${gpuUsage.value}%",
-                ratio = gpuUsage.value / 100f,
+                valueText = "${t.gpuUsage}%",
+                ratio = t.gpuUsage / 100f,
                 accent = LocalPanelAccent.current,
-                detail1 = gpuFreq.value,
-                detail2 = "%.1f°C".format(gpuTemp.value),
+                detail1 = "${t.gpuFreqMhz} MHz",
+                detail2 = "%.1f°C".format(t.gpuTempC),
                 detail2Color = gpuTColor,
                 selected = selectedMetric == "gpu",
                 onClick = { selectMetric(if (selectedMetric == "gpu") null else "gpu") },
@@ -561,23 +529,20 @@ fun HeaderInfoBar(
 
         // ── RAM Usage — ultra compact inline bar ──
         val accentColor = MaterialTheme.colorScheme.primary
-        val ramInfo = rememberRamUsage()
         val ramRatio by animateFloatAsState(
-            targetValue = ramInfo.usagePercent / 100f,
-            animationSpec = tween(500), label = "ram_bar"
+            targetValue = t.ramPct / 100f,
+            animationSpec = tween(500), label = "ram_bar",
         )
         val ramBarColor by animateColorAsState(
             targetValue = when {
-                ramInfo.usagePercent > 90f -> Color(0xFFD32F2F)
-                ramInfo.usagePercent > 75f -> Color(0xFFFFA000)
+                t.ramPct > 90f -> Color(0xFFD32F2F)
+                t.ramPct > 75f -> Color(0xFFFFA000)
                 else -> accentColor
             },
-            animationSpec = tween(500), label = "ram_color"
+            animationSpec = tween(500), label = "ram_color",
         )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -588,27 +553,23 @@ fun HeaderInfoBar(
                 tint = ramBarColor.copy(alpha = 0.6f),
             )
             Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(2.dp)
+                modifier = Modifier.weight(1f).height(2.dp)
                     .clip(RoundedCornerShape(1.dp))
-                    .background(Color.White.copy(alpha = 0.06f))
+                    .background(Color.White.copy(alpha = 0.06f)),
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
+                    modifier = Modifier.fillMaxHeight()
                         .fillMaxWidth(ramRatio.coerceIn(0f, 1f))
                         .clip(RoundedCornerShape(1.dp))
-                        .background(ramBarColor)
+                        .background(ramBarColor),
                 )
             }
             Text(
-                text = if (ramInfo.swapTotalGb > 0.1f)
+                text = if (t.swapTotalGb > 0.1f)
                     "%.1f/%.0fG · SWAP %.1f/%.0fG".format(
-                        ramInfo.usedGb, ramInfo.totalGb,
-                        ramInfo.swapUsedGb, ramInfo.swapTotalGb,
+                        t.ramUsedGb, t.ramTotalGb, t.swapUsedGb, t.swapTotalGb,
                     )
-                else "%.1f/%.0fG".format(ramInfo.usedGb, ramInfo.totalGb),
+                else "%.1f/%.0fG".format(t.ramUsedGb, t.ramTotalGb),
                 color = PanelTextSecondary,
                 fontSize = 8.sp,
                 fontWeight = FontWeight.Medium,
@@ -624,18 +585,9 @@ fun HeaderInfoBar(
         val profileColor = getThermalProfileColor(thermalProfile.value)
 
         // Display style state
-        val displayMode = remember(currentGamePackage) { mutableStateOf(0) }
-        LaunchedEffect(currentGamePackage) {
-            if (currentGamePackage != null) {
-                try {
-                    val saved = Settings.System.getIntForUser(
-                        context.contentResolver,
-                        "${GAME_COLOR_MODE_KEY}_${currentGamePackage}",
-                        0, android.os.UserHandle.USER_CURRENT
-                    )
-                    displayMode.value = saved
-                } catch (_: Exception) { displayMode.value = 0 }
-            }
+        val store = remember { PerAppSettingStore(context) }
+        val displayMode = remember(currentGamePackage) {
+            mutableIntStateOf(currentGamePackage?.let { store.displayStyle(it) } ?: 0)
         }
         val currentDisplayLabel = colorModes.find { it.id == displayMode.value }?.label ?: "Original"
         val currentDisplayIcon = colorModes.find { it.id == displayMode.value }?.iconRes ?: R.drawable.materialsymbols_ic_circle_rounded_filled
@@ -662,8 +614,11 @@ fun HeaderInfoBar(
                         .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier.size(5.dp).clip(CircleShape).background(profileColor)
+                    Icon(
+                        imageVector = getProfileIcon(thermalProfile.value, currentProfileName),
+                        contentDescription = null,
+                        modifier = Modifier.size(12.dp),
+                        tint = profileColor,
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
@@ -688,7 +643,9 @@ fun HeaderInfoBar(
                 DropdownMenu(
                     expanded = thermalExpanded,
                     onDismissRequest = { thermalExpanded = false },
-                    modifier = Modifier.background(PanelCardBg, RoundedCornerShape(12.dp)).width(180.dp)
+                    modifier = Modifier.width(140.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = PanelCardBg
                 ) {
                     relevantProfiles.forEach { entry ->
                         val isSelected = entry.index == thermalProfile.value
@@ -696,12 +653,17 @@ fun HeaderInfoBar(
                         DropdownMenuItem(
                             text = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(entryColor))
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = getProfileIcon(entry.index, entry.name),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(10.dp),
+                                        tint = if (isSelected) Color.Black else entryColor,
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = entry.name,
                                         color = if (isSelected) Color.Black else PanelTextPrimary,
-                                        fontSize = 12.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 }
@@ -709,26 +671,16 @@ fun HeaderInfoBar(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 thermalProfile.value = entry.index
-                                if (currentGamePackage != null) {
-                                    try {
-                                        val json = Settings.System.getStringForUser(
-                                            context.contentResolver, THERMAL_PROFILE_KEY, UserHandle.USER_CURRENT
-                                        ) ?: "{}"
-                                        val obj = org.json.JSONObject(json)
-                                        if (entry.index == 0) obj.remove(currentGamePackage)
-                                        else obj.put(currentGamePackage, entry.index)
-                                        Settings.System.putStringForUser(
-                                            context.contentResolver, THERMAL_PROFILE_KEY,
-                                            obj.toString(), UserHandle.USER_CURRENT
-                                        )
-                                    } catch (_: Exception) {}
+                                currentGamePackage?.let { pkg ->
+                                    store.setThermalProfile(pkg, entry.index)
                                 }
                                 thermalExpanded = false
                             },
                             modifier = Modifier.background(
                                 if (isSelected) entryColor.copy(alpha = 0.9f) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
-                            ),
+                            ).height(30.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                         )
                     }
                 }
@@ -777,7 +729,9 @@ fun HeaderInfoBar(
                 DropdownMenu(
                     expanded = displayExpanded,
                     onDismissRequest = { displayExpanded = false },
-                    modifier = Modifier.background(PanelCardBg, RoundedCornerShape(12.dp)).width(180.dp)
+                    modifier = Modifier.width(140.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    containerColor = PanelCardBg
                 ) {
                     colorModes.forEach { mode ->
                         val isSelected = displayMode.value == mode.id
@@ -787,14 +741,14 @@ fun HeaderInfoBar(
                                     Icon(
                                         painter = painterResource(mode.iconRes),
                                         contentDescription = null,
-                                        modifier = Modifier.size(14.dp),
+                                        modifier = Modifier.size(10.dp),
                                         tint = if (isSelected) Color.Black else PanelTextPrimary,
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = mode.label,
                                         color = if (isSelected) Color.Black else PanelTextPrimary,
-                                        fontSize = 12.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     )
                                 }
@@ -802,29 +756,173 @@ fun HeaderInfoBar(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 displayMode.value = mode.id
-                                if (currentGamePackage != null) {
-                                    try {
-                                        Settings.System.putIntForUser(
-                                            context.contentResolver,
-                                            "${GAME_COLOR_MODE_KEY}_${currentGamePackage}",
-                                            mode.id, android.os.UserHandle.USER_CURRENT
-                                        )
-                                    } catch (_: Exception) {}
+                                currentGamePackage?.let { pkg ->
+                                    store.setDisplayStyle(pkg, mode.id)
                                 }
-                                applyGameColorMode(context, mode.id)
                                 displayExpanded = false
                             },
                             modifier = Modifier.background(
                                 if (isSelected) LocalPanelAccent.current.copy(alpha = 0.9f) else Color.Transparent,
                                 RoundedCornerShape(8.dp)
-                            ),
+                            ).height(30.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                         )
                     }
                 }
             }
 
-            // ── Tuner entry pill: opens as a full panel page (never causes scrolling) ──
-            Box(modifier = Modifier.weight(1f)) {
+            // ── Monitors Dropdown ──
+            var monitorExpanded by remember { mutableStateOf(false) }
+            val monSettings = tileRepository.monitorSettings
+            val monOverlay = tileRepository.monitorOverlayManager
+
+            Box(modifier = Modifier.wrapContentWidth()) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            monitorExpanded = true
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_fps),
+                        contentDescription = "Monitors",
+                        tint = LocalPanelAccent.current,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+
+                if (monSettings != null && monOverlay != null) {
+                    DropdownMenu(
+                        expanded = monitorExpanded,
+                        onDismissRequest = { monitorExpanded = false },
+                        modifier = Modifier.width(170.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        containerColor = PanelCardBg
+                    ) {
+                        // Ghost Mode
+                        DropdownMenuItem(
+                            text = { Text("Ghost Mode", color = PanelTextPrimary, fontSize = 10.sp) },
+                            trailingIcon = {
+                                Switch(
+                                    checked = monSettings.isPinned,
+                                    onCheckedChange = { 
+                                        monSettings.isPinned = it
+                                        monOverlay.updateWindowParams()
+                                        tileRepository.bringSidebarToFront?.invoke()
+                                    },
+                                    modifier = Modifier.scale(0.5f)
+                                )
+                            },
+                            onClick = { 
+                                monSettings.isPinned = !monSettings.isPinned
+                                monOverlay.updateWindowParams()
+                                tileRepository.bringSidebarToFront?.invoke()
+                            },
+                            modifier = Modifier.height(28.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        )
+                        HorizontalDivider(color = PanelBorder, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 8.dp))
+                        
+                        // Classical Monitor
+                        DropdownMenuItem(
+                            text = { Text("Classical Monitor", color = PanelTextPrimary, fontSize = 10.sp) },
+                            trailingIcon = {
+                                Switch(
+                                    checked = monSettings.isClassicalMonitorEnabled,
+                                    onCheckedChange = { 
+                                        monSettings.isClassicalMonitorEnabled = it
+                                        monOverlay.updateWindowParams() 
+                                        tileRepository.bringSidebarToFront?.invoke()
+                                    },
+                                    modifier = Modifier.scale(0.5f)
+                                )
+                            },
+                            onClick = { 
+                                val it = !monSettings.isClassicalMonitorEnabled
+                                monSettings.isClassicalMonitorEnabled = it
+                                monOverlay.updateWindowParams() 
+                                tileRepository.bringSidebarToFront?.invoke()
+                            },
+                            modifier = Modifier.height(28.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        )
+                        // Mini Monitor
+                        DropdownMenuItem(
+                            text = { Text("Mini Monitor", color = PanelTextPrimary, fontSize = 10.sp) },
+                            trailingIcon = {
+                                Switch(
+                                    checked = monSettings.isMiniMonitorEnabled,
+                                    onCheckedChange = { 
+                                        monSettings.isMiniMonitorEnabled = it
+                                        monOverlay.updateWindowParams() 
+                                        tileRepository.bringSidebarToFront?.invoke()
+                                    },
+                                    modifier = Modifier.scale(0.5f)
+                                )
+                            },
+                            onClick = { 
+                                val it = !monSettings.isMiniMonitorEnabled
+                                monSettings.isMiniMonitorEnabled = it
+                                monOverlay.updateWindowParams() 
+                                tileRepository.bringSidebarToFront?.invoke()
+                            },
+                            modifier = Modifier.height(28.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        )
+                        // Processes Monitor
+                        DropdownMenuItem(
+                            text = { Text("Processes", color = PanelTextPrimary, fontSize = 10.sp) },
+                            trailingIcon = {
+                                Switch(
+                                    checked = monSettings.isProcessesMonitorEnabled,
+                                    onCheckedChange = { 
+                                        monSettings.isProcessesMonitorEnabled = it
+                                        monOverlay.updateWindowParams()
+                                        tileRepository.bringSidebarToFront?.invoke()
+                                    },
+                                    modifier = Modifier.scale(0.5f)
+                                )
+                            },
+                            onClick = { 
+                                monSettings.isProcessesMonitorEnabled = !monSettings.isProcessesMonitorEnabled
+                                monOverlay.updateWindowParams()
+                                tileRepository.bringSidebarToFront?.invoke()
+                            },
+                            modifier = Modifier.height(28.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        )
+                        // Temp Monitor
+                        DropdownMenuItem(
+                            text = { Text("Temperature", color = PanelTextPrimary, fontSize = 10.sp) },
+                            trailingIcon = {
+                                Switch(
+                                    checked = monSettings.isTempMonitorEnabled,
+                                    onCheckedChange = { 
+                                        monSettings.isTempMonitorEnabled = it
+                                        monOverlay.updateWindowParams()
+                                        tileRepository.bringSidebarToFront?.invoke()
+                                    },
+                                    modifier = Modifier.scale(0.5f)
+                                )
+                            },
+                            onClick = { 
+                                monSettings.isTempMonitorEnabled = !monSettings.isTempMonitorEnabled
+                                monOverlay.updateWindowParams()
+                                tileRepository.bringSidebarToFront?.invoke()
+                            },
+                            modifier = Modifier.height(28.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        )
+                    }
+                }
+            }
+
+            // ── Tuner entry pill (icon only) ──
+            Box(modifier = Modifier.wrapContentWidth()) {
                 TunerEntryRow(
                     onOpen = { tileRepository.showPerfTuner.value = true },
                 )
@@ -849,14 +947,13 @@ fun HeaderInfoBar(
                 Spacer(modifier = Modifier.height(8.dp))
                 when (selectedMetric) {
                     "cpu" -> CpuClusterGraph()
-                    "gpu" -> {
-                        GpuLoadGraph(
-                            gpuUsage = gpuUsage,
-                            gpuFreq = gpuFreq,
-                            gpuTemp = gpuTemp,
-                            history = gpuHistory,
-                        )
-                    }
+                    "gpu" -> GpuLoadGraph(
+                        gpuUsage = t.gpuUsage,
+                        gpuFreqMhz = t.gpuFreqMhz,
+                        gpuTempC = t.gpuTempC,
+                        gpuHeat = t.gpuHeat,
+                        history = t.gpuUsageHistory,
+                    )
                     "fps" -> {
                         FpsGraph(
                             modifier = Modifier
@@ -880,86 +977,8 @@ fun HeaderInfoBar(
 }
 
 
-@Composable
-private fun InfoRow(
-    batteryInfo: BatteryInfo,
-    profileName: String,
-    profileColor: Color,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        val temp = batteryInfo.temperatureC.toInt()
-        BatteryIndicator(batteryLevel = batteryInfo.level)
-        Spacer(modifier = Modifier.width(4.dp))
-        InfoItem(
-            icon = painterResource(R.drawable.materialsymbols_ic_device_thermostat_rounded_filled),
-            value = "$temp"
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Text(
-            text = profileName,
-            style = MaterialTheme.typography.bodyLarge,
-            color = profileColor,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-}
 
-@Composable
-private fun InfoItem(
-    icon: Any?,
-    value: String,
-    onClick: (() -> Unit)? = null
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-    ) {
-        if (icon != null) {
-            when (icon) {
-                is ImageVector -> Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                is Painter -> Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(1.dp))
-        }
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
 
-@Composable
-fun BatteryIndicator(
-    batteryLevel: Int,
-    modifier: Modifier = Modifier
-) {
-    val icon = when {
-        batteryLevel >= 90 -> painterResource(R.drawable.materialsymbols_ic_battery_android_full_rounded_filled)
-        batteryLevel >= 70 -> painterResource(R.drawable.materialsymbols_ic_battery_android_4_rounded_filled)
-        batteryLevel >= 50 -> painterResource(R.drawable.materialsymbols_ic_battery_android_3_rounded_filled)
-        batteryLevel >= 30 -> painterResource(R.drawable.materialsymbols_ic_battery_android_2_rounded_filled)
-        batteryLevel >= 10 -> painterResource(R.drawable.materialsymbols_ic_battery_android_1_rounded_filled)
-        else -> painterResource(R.drawable.materialsymbols_ic_battery_android_0_rounded_filled)
-    }
-
-    val batteryText = "$batteryLevel%"
-
-    InfoItem(
-        icon = icon,
-        value = batteryText
-    )
-}
 
 @Composable
 fun rememberCurrentTime(): String {
@@ -990,101 +1009,6 @@ fun rememberCurrentTime(): String {
     return timeState.value
 }
 
-@Composable
-fun rememberBatteryInfo(): BatteryInfo {
-    val context = LocalContext.current
-    val batteryInfo = remember { mutableStateOf(BatteryInfo()) }
-    val batteryManager = remember {
-        context.getSystemService(android.content.Context.BATTERY_SERVICE) as android.os.BatteryManager
-    }
-    // Cached voltage from broadcast (mV → µV) — updated by receiver, read by polling loop
-    val cachedVoltageUv = remember { mutableStateOf(0L) }
-
-    // Helper: compute wattage from BatteryManager current + cached voltage
-    fun computeWattage(): Pair<Float, Boolean> {
-        val currentUa = batteryManager.getIntProperty(
-            android.os.BatteryManager.BATTERY_PROPERTY_CURRENT_NOW
-        ).toLong()
-        val isCharging = batteryManager.isCharging
-        val voltageUv = cachedVoltageUv.value
-        if (voltageUv == 0L) return Pair(0f, isCharging)
-        val powerW = (kotlin.math.abs(currentUa).toDouble() * voltageUv.toDouble() / 1_000_000_000_000.0).toFloat()
-        return Pair(if (isCharging) powerW else -powerW, isCharging)
-    }
-
-    // Broadcast receiver: level + temp + voltage (fires on battery state changes)
-    DisposableEffect(context) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                intent?.let {
-                    val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                    val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                    val percentage = if (level >= 0 && scale > 0) (level * 100 / scale) else -1
-                    val tempCelsius = it.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
-                    val voltageMv = it.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
-                    cachedVoltageUv.value = voltageMv.toLong() * 1000L
-
-                    // Compute wattage inline — no separate polling needed for this event
-                    val (watt, charging) = computeWattage()
-                    batteryInfo.value = BatteryInfo(
-                        level = percentage,
-                        temperatureC = tempCelsius,
-                        wattage = watt,
-                        isCharging = charging,
-                    )
-                }
-            }
-        }
-
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        context.registerReceiver(receiver, filter)
-
-        // Seed initial values from sticky intent
-        val sticky = context.registerReceiver(null, filter)
-        sticky?.let {
-            val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            val percentage = if (level >= 0 && scale > 0) (level * 100 / scale) else -1
-            val tempCelsius = it.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) / 10f
-            val voltageMv = it.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0)
-            cachedVoltageUv.value = voltageMv.toLong() * 1000L
-
-            val (watt, charging) = computeWattage()
-            batteryInfo.value = BatteryInfo(
-                level = percentage,
-                temperatureC = tempCelsius,
-                wattage = watt,
-                isCharging = charging,
-            )
-        }
-
-        onDispose { context.unregisterReceiver(receiver) }
-    }
-
-    // Lightweight polling: only updates wattage between battery broadcasts (every 2s)
-    // BatteryManager.getIntProperty is fast — no sysfs, no registerReceiver
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(2000L)
-            try {
-                val (watt, charging) = computeWattage()
-                batteryInfo.value = batteryInfo.value.copy(
-                    wattage = watt,
-                    isCharging = charging,
-                )
-            } catch (_: Exception) {}
-        }
-    }
-
-    return batteryInfo.value
-}
-
-data class BatteryInfo(
-    val level: Int = -1,
-    val temperatureC: Float = 0f,
-    val wattage: Float = 0f,     // ±W: positive = charging, negative = discharging
-    val isCharging: Boolean = false,
-)
 
 // ══════════════════════════════════════════════════════════════════
 // Feature: Game Session Timer

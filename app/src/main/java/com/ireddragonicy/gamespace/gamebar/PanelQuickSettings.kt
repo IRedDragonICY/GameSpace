@@ -110,12 +110,19 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+private val GAMING_TOOL_IDS = setOf(
+    "notification", "stay_awake", "fps_info", "boost_memory", "settings",
+    "touch_boost", "lock_gesture", "afme", "map_controls",
+    "htsr", "super_touch", "first_frame_boost", "hot_area",
+    "game_vibration", "fps_stats_record",
+)
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PanelContent(
-    interactor: BrightnessInteractor,
+    modifier: Modifier = Modifier,
     tileRepository: TileRepository,
-    onEditClick: () -> Unit,
-    modifier: Modifier = Modifier
+    interactor: BrightnessInteractor
 ) {
     val quickToggles = tileRepository.quickToggles
     val toolTiles = tileRepository.toolTiles
@@ -135,7 +142,6 @@ fun PanelContent(
                 } else if (targetZone == DragZone.Tool) {
                     currentTool.add(targetIndex.coerceIn(0, currentTool.size), sourceId)
                 }
-
                 tileRepository.updateQuickToggles(currentQuick)
                 tileRepository.updateTileSelection(currentTool)
             }
@@ -207,8 +213,8 @@ fun PanelContent(
                         val pos = it.positionInWindow()
                         dragDropState.quickZoneRect = androidx.compose.ui.geometry.Rect(pos, androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat()))
                     }
-                    // Hapus parameter `enabled = ...` agar tidak men-cancel pointer
                     .horizontalScroll(state = quickScrollState)
+                    .fadeEdges()
                     .padding(vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
@@ -348,17 +354,9 @@ fun PanelContent(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(top = 2.dp)
                     ) {
-                        repeat(pages.size) { idx ->
-                            val selected = pagerState.currentPage == idx
-                            Box(
-                                modifier = Modifier
-                                    .size(if (selected) 6.dp else 4.dp)
-                                    .clip(androidx.compose.foundation.shape.CircleShape)
-                                    .background(
-                                        if (selected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                                    )
-                            )
+                        repeat(pages.size) { i ->
+                            val color = if (pagerState.currentPage == i) LocalPanelAccent.current else Color.White.copy(alpha = 0.2f)
+                            Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(color))
                         }
                     }
                 }

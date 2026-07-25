@@ -110,8 +110,44 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.ireddragonicy.gamespace.telemetry.TelemetryBus
+import com.ireddragonicy.gamespace.telemetry.TelemetrySnapshot
+import com.ireddragonicy.gamespace.utils.di.ServiceViewEntryPoint
+import dagger.hilt.android.EntryPointAccessors
+
+@Composable
+fun rememberTelemetryBus(): TelemetryBus {
+    val ctx = LocalContext.current
+    return remember(ctx.applicationContext) {
+        EntryPointAccessors.fromApplication(
+            ctx.applicationContext, ServiceViewEntryPoint::class.java
+        ).telemetryBus()
+    }
+}
+
+/** The one composable every panel widget reads. One collect, one frame, no polling. */
+@Composable
+fun rememberTelemetry(): TelemetrySnapshot =
+    rememberTelemetryBus().snapshot.collectAsState().value
+
+/**
+ * Trip-relative colour for *silicon* (CPU/GPU). One rule, ratio-based.
+ * Battery stays on its own absolute scale ([batteryTempColor]).
+ */
+fun heatColor(heat: Float): Color = when {
+    heat <= 0f   -> Color(0xFF42A5F5)   // no reading / cool
+    heat < 0.45f -> Color(0xFF42A5F5)
+    heat < 0.70f -> Color(0xFF66BB6A)   // normal gaming
+    heat < 0.90f -> Color(0xFFFFA726)   // heavy load
+    else         -> Color(0xFFEF5350)   // at / over trip → throttling
+}
+
 @Composable
 fun FpsGraph(
+
     modifier: Modifier = Modifier,
     interactor: FpsInteractor
 ) {
@@ -222,151 +258,82 @@ internal fun getPercentage(value: Double, min: Float, max: Float): Double {
     return ((value - min) / (max - min)).coerceIn(0.0, 1.0)
 }
 
-// ── Per-Cluster CPU Graph (dynamic — reads all policy dirs) ──
-
-data class CpuClusterInfo(
-    val policyName: String,     // e.g. "policy0"
-    val cpuIds: List<Int>,      // e.g. [0, 1]
-    val currentKhz: Long,
-    val maxKhz: Long,
-    val coreType: String,       // e.g. "A520", "A725", "X925"
-)
-
-/**
- * Dynamically reads all CPU frequency scaling policies from sysfs.
- * Returns per-cluster frequency info with core type labels.
- * SM8735 (sun): policy0=A520×2, policy2=A725×3, policy5=A725×2, policy7=X925×1
- */
-@Composable
-fun rememberCpuClusters(): List<CpuClusterInfo> {
-    val clusters = remember { mutableStateOf<List<CpuClusterInfo>>(emptyList()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            try {
-                val cpufreqDir = java.io.File("/sys/devices/system/cpu/cpufreq/")
-                val policies = cpufreqDir.listFiles()?.filter {
-                    it.isDirectory && it.name.startsWith("policy")
-                }?.sortedBy {
-                    it.name.removePrefix("policy").toIntOrNull() ?: 0
-                } ?: emptyList()
-
-                clusters.value = policies.map { policyDir ->
-                    val cpuIds = java.io.File(policyDir, "affected_cpus")
-                        .readText().trim().split(" ")
-                        .mapNotNull { it.toIntOrNull() }
-                    val curKhz = java.io.File(policyDir, "scaling_cur_freq")
-                        .readText().trim().toLongOrNull() ?: 0L
-                    val maxKhz = java.io.File(policyDir, "cpuinfo_max_freq")
-                        .readText().trim().toLongOrNull() ?: 1L
-
-                    // Map cluster to SoC core type based on max freq
-                    val coreType = when {
-                        maxKhz > 3100000 -> "X925"      // Prime core >3.1GHz
-                        maxKhz > 2700000 -> "A725"      // Performance >2.7GHz
-                        maxKhz > 2500000 -> "A725"      // Performance >2.5GHz
-                        else -> "A520"                    // Efficiency ≤2.5GHz
-                    }
-
-                    CpuClusterInfo(
-                        policyName = policyDir.name,
-                        cpuIds = cpuIds,
-                        currentKhz = curKhz,
-                        maxKhz = maxKhz,
-                        coreType = coreType,
-                    )
-                }
-            } catch (_: Exception) {}
-            kotlinx.coroutines.delay(1000L)
-        }
-    }
-
-    return clusters.value
-}
-
 /**
  * Per-cluster CPU frequency bar graph — ROG Game Turbo style.
  * Shows each cluster as a horizontal bar: current freq vs max freq.
- * Color: green (low), cyan (medium), orange (high), red (maxed out).
+ * Includes a ceiling notch for thermal throttling (hwMaxKhz).
  */
 @Composable
 fun CpuClusterGraph(modifier: Modifier = Modifier) {
-    val clusters = rememberCpuClusters()
+    val clusters = rememberTelemetry().cpuClusters
     val panelShape = remember { chamferShape(bigCut = 10.dp, smallCut = 4.dp) }
-
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.White.copy(alpha = 0.03f), panelShape)
             .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (clusters.isEmpty()) {
             Text(
-                text = "Reading CPU clusters...",
+                text = "Reading CPU clusters…",
                 color = PanelTextSecondary,
                 fontSize = 10.sp,
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
             )
         } else {
-            clusters.forEach { cluster ->
-                val ratio = if (cluster.maxKhz > 0)
-                    (cluster.currentKhz.toFloat() / cluster.maxKhz).coerceIn(0f, 1f)
-                else 0f
-
+            clusters.forEach { c ->
+                val ratio = if (c.hwMaxKhz > 0)
+                    (c.curKhz.toFloat() / c.hwMaxKhz).coerceIn(0f, 1f) else 0f
+                val capRatio = if (c.hwMaxKhz > 0)
+                    (c.scalingMaxKhz.toFloat() / c.hwMaxKhz).coerceIn(0f, 1f) else 1f
+                val capped = c.scalingMaxKhz in 1 until c.hwMaxKhz - 1_000L
                 val barColor = when {
-                    ratio < 0.3f -> Color(0xFF66BB6A)   // Green — idle
-                    ratio < 0.6f -> LocalPanelAccent.current        // Cyan — moderate
-                    ratio < 0.85f -> Color(0xFFFFA726)   // Orange — high
-                    else -> Color(0xFFEF5350)            // Red — maxed
+                    ratio < 0.3f -> Color(0xFF66BB6A)
+                    ratio < 0.6f -> LocalPanelAccent.current
+                    ratio < 0.85f -> Color(0xFFFFA726)
+                    else -> Color(0xFFEF5350)
                 }
-
                 val animatedRatio by animateFloatAsState(
                     targetValue = ratio,
                     animationSpec = tween(300),
-                    label = "cluster_${cluster.policyName}"
+                    label = "cl_${c.name}",
                 )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Cluster label: "A520×2"
                     Text(
-                        text = "${cluster.coreType}×${cluster.cpuIds.size}",
+                        text = "${c.name}×${c.cpuCount}",
                         color = PanelTextSecondary,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.width(40.dp),
                     )
-
-                    // Frequency blade bar — chamfered, glow-tipped
-                    val bladeShape = remember { chamferShape(bigCut = 4.dp, smallCut = 2.dp) }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(10.dp)
-                            .clip(bladeShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .fillMaxWidth(animatedRatio)
-                                .clip(bladeShape)
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(barColor.copy(alpha = 0.55f), barColor)
-                                    )
-                                )
+                    Canvas(Modifier.weight(1f).height(10.dp)) {
+                        val w = size.width
+                        val h = size.height
+                        val cr = CornerRadius(2.dp.toPx())
+                        drawRoundRect(Color.White.copy(alpha = 0.06f), cornerRadius = cr)
+                        drawRoundRect(
+                            brush = Brush.horizontalGradient(
+                                listOf(barColor.copy(alpha = 0.55f), barColor)
+                            ),
+                            size = Size(w * animatedRatio, h),
+                            cornerRadius = cr,
                         )
+                        if (capped) {
+                            drawLine(
+                                PanelTextSecondary.copy(alpha = 0.8f),
+                                Offset(w * capRatio, 0f),
+                                Offset(w * capRatio, h),
+                                1.5.dp.toPx(),
+                            )
+                        }
                     }
-
-                    // Current freq label
-                    val freqMhz = cluster.currentKhz / 1000
                     Text(
-                        text = "${freqMhz}M",
+                        text = "${c.curKhz / 1000}M",
                         color = barColor,
                         fontSize = 8.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -388,71 +355,46 @@ fun CpuClusterGraph(modifier: Modifier = Modifier) {
 @Composable
 fun GpuLoadGraph(
     modifier: Modifier = Modifier,
-    gpuUsage: MutableState<Int>,
-    gpuFreq: MutableState<String>,
-    gpuTemp: MutableState<Float>,
+    gpuUsage: Int,
+    gpuFreqMhz: Int,
+    gpuTempC: Float,
+    gpuHeat: Float,
     history: List<Int>,
 ) {
     val maxSamples = 30
-
     val usageColor = when {
-        gpuUsage.value > 80 -> Color(0xFFEF5350)
-        gpuUsage.value > 50 -> Color(0xFFFFA726)
+        gpuUsage > 80 -> Color(0xFFEF5350)
+        gpuUsage > 50 -> Color(0xFFFFA726)
         else -> LocalPanelAccent.current
     }
-
     val gpuPanelShape = remember { chamferShape(bigCut = 10.dp, smallCut = 4.dp) }
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Color.White.copy(alpha = 0.03f), gpuPanelShape)
             .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        // Header: GPU xx% | 685 MHz | 58.5°C
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text("GPU", color = PanelTextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.width(6.dp))
+            Text("$gpuUsage%", color = usageColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.weight(1f))
+            Text("$gpuFreqMhz MHz", color = LocalPanelAccent.current.copy(alpha = 0.7f), fontSize = 9.sp)
+            Spacer(Modifier.width(8.dp))
+            val gpuTColor by animateColorAsState(heatColor(gpuHeat), tween(500), "gpu_graph_tc")
             Text(
-                text = "GPU",
-                color = PanelTextSecondary,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "${gpuUsage.value}%",
-                color = usageColor,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = gpuFreq.value,
-                color = LocalPanelAccent.current.copy(alpha = 0.7f),
-                fontSize = 9.sp,
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            val gpuTColor by animateColorAsState(
-                targetValue = gpuTempColor(gpuTemp.value),
-                animationSpec = tween(500), label = "gpu_graph_tc"
-            )
-            Text(
-                text = "%.1f°C".format(gpuTemp.value),
+                "%.1f°C".format(gpuTempC),
                 color = gpuTColor,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
-
-        // ROG chart: right-aligned rolling series over the tactical grid
         if (history.size >= 2) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-            ) {
+            Canvas(Modifier.fillMaxWidth().height(44.dp)) {
                 drawChartFrame(usageColor)
                 val stepX = size.width / (maxSamples - 1).toFloat()
                 drawSeries(
@@ -463,18 +405,11 @@ fun GpuLoadGraph(
                 )
             }
         } else {
-            // Loading state
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                Modifier.fillMaxWidth().height(48.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = "Collecting GPU data...",
-                    color = PanelTextSecondary,
-                    fontSize = 9.sp,
-                )
+                Text("Collecting GPU data…", color = PanelTextSecondary, fontSize = 9.sp)
             }
         }
     }
@@ -594,24 +529,7 @@ fun VerticalUsageGauge(
     }
 }
 
-// ── Temperature color helper (dynamic: cool → hot) ──
-
-/**
- * Returns dynamic color based on temperature:
- * - Blue  (<35°C): cool/idle
- * - Green (35-42°C): normal/stable
- * - Orange (42-50°C): warm/gaming
- * - Red   (>50°C): hot/throttling
- */
-@Deprecated("Use batteryTempColor/cpuTempColor/gpuTempColor for accurate thresholds")
-fun tempColor(tempC: Float): Color = when {
-    tempC < 35f -> Color(0xFF42A5F5)
-    tempC < 42f -> Color(0xFF66BB6A)
-    tempC < 50f -> Color(0xFFFFA726)
-    else -> Color(0xFFEF5350)
-}
-
-/** Battery temperature colors — stricter thresholds (batteries are fragile) */
+/** Battery temperature colors — absolute thresholds */
 fun batteryTempColor(tempC: Float): Color = when {
     tempC < 30f -> Color(0xFF42A5F5)   // Blue — cool
     tempC < 37f -> Color(0xFF66BB6A)   // Green — normal
@@ -619,346 +537,19 @@ fun batteryTempColor(tempC: Float): Color = when {
     else -> Color(0xFFEF5350)          // Red — hot (battery danger)
 }
 
-/** CPU temperature colors — higher thresholds (SoC runs hotter) */
-fun cpuTempColor(tempC: Float): Color = when {
-    tempC < 45f -> Color(0xFF42A5F5)   // Blue — cool/idle
-    tempC < 60f -> Color(0xFF66BB6A)   // Green — normal gaming
-    tempC < 75f -> Color(0xFFFFA726)   // Orange — heavy load
-    else -> Color(0xFFEF5350)          // Red — throttling zone
+/** SoC temperature colors — trip-relative thresholds */
+fun socTempColor(tempC: Float, maxTempC: Float = 100f): Color = when {
+    tempC < maxTempC - 30f -> Color(0xFF42A5F5)   // Blue — cool/idle
+    tempC < maxTempC - 15f -> Color(0xFF66BB6A)   // Green — normal gaming
+    tempC < maxTempC - 5f -> Color(0xFFFFA726)    // Orange — heavy load
+    else -> Color(0xFFEF5350)                     // Red — throttling zone
 }
 
-/** GPU temperature colors — even higher thresholds (GPU runs hottest) */
-fun gpuTempColor(tempC: Float): Color = when {
-    tempC < 50f -> Color(0xFF42A5F5)   // Blue — cool/idle
-    tempC < 65f -> Color(0xFF66BB6A)   // Green — normal gaming
-    tempC < 78f -> Color(0xFFFFA726)   // Orange — heavy load
-    else -> Color(0xFFEF5350)          // Red — throttling zone
-}
+/** Compat shim for old calls */
+fun cpuTempColor(tempC: Float) = socTempColor(tempC)
+fun gpuTempColor(tempC: Float) = socTempColor(tempC)
 
-// ── Sysfs Temperature Reader (for CPU/GPU thermal zones) ──
 
-/**
- * Reads temperature from a sysfs thermal zone file.
- * Thermal zones report in millidegrees Celsius (e.g., 49900 = 49.9°C).
- * Updates every 2 seconds.
- */
-@Composable
-fun rememberSysfsTemp(sysfsPath: String): MutableState<Float> {
-    val temp = remember { mutableStateOf(0f) }
-
-    LaunchedEffect(sysfsPath) {
-        while (true) {
-            try {
-                val raw = java.io.File(sysfsPath).readText().trim().toLongOrNull() ?: 0L
-                temp.value = raw / 1000f
-            } catch (_: Exception) {}
-            kotlinx.coroutines.delay(2000L)
-        }
-    }
-
-    return temp
-}
-
-// ── CPU Usage Monitor (Game Turbo style) ──
-@Composable
-fun rememberCpuUsage(): MutableState<Int> {
-    val cpuUsage = remember { mutableStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        var prevTotal = 0L
-        var prevIdle = 0L
-
-        // Do initial read immediately to seed prev values
-        try {
-            val lines = java.io.File("/proc/stat").readLines()
-            val cpuLine = lines.firstOrNull { it.startsWith("cpu ") }
-            if (cpuLine != null) {
-                val parts = cpuLine.split("\\s+".toRegex()).drop(1).map { it.toLong() }
-                if (parts.size >= 4) {
-                    prevIdle = parts[3]
-                    prevTotal = parts.sum()
-                }
-            }
-        } catch (_: Exception) {}
-        delay(500) // Short initial delay
-
-        while (isActive) {
-            try {
-                val lines = java.io.File("/proc/stat").readLines()
-                val cpuLine = lines.firstOrNull { it.startsWith("cpu ") }
-                if (cpuLine != null) {
-                    val parts = cpuLine.split("\\s+".toRegex()).drop(1).map { it.toLong() }
-                    if (parts.size >= 4) {
-                        val idle = parts[3]
-                        val total = parts.sum()
-                        val diffTotal = total - prevTotal
-                        val diffIdle = idle - prevIdle
-                        if (diffTotal > 0) {
-                            cpuUsage.value = ((diffTotal - diffIdle) * 100 / diffTotal).toInt()
-                                .coerceIn(0, 100)
-                        }
-                        prevTotal = total
-                        prevIdle = idle
-                    }
-                }
-            } catch (_: Exception) {}
-            delay(1000)
-        }
-    }
-
-    return cpuUsage
-}
-
-// ── GPU Usage Monitor (Adreno kgsl sysfs) ──
-@Composable
-fun rememberGpuUsage(): MutableState<Int> {
-    val gpuUsage = remember { mutableStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        // Detect which GPU sysfs path works
-        val kgslPath = "/sys/class/kgsl/kgsl-3d0/gpu_busy_percentage"
-        val devfreqBase = "/sys/class/devfreq/"
-        var gpuPath: String? = null
-        var useDevfreq = false
-
-        // Try kgsl first (Adreno)
-        if (java.io.File(kgslPath).exists()) {
-            gpuPath = kgslPath
-        } else {
-            // Fallback: find devfreq GPU directory
-            try {
-                val devfreqDir = java.io.File(devfreqBase)
-                val gpuDir = devfreqDir.listFiles()?.firstOrNull {
-                    it.name.contains("gpu") || it.name.contains("3d0") || it.name.contains("kgsl")
-                }
-                if (gpuDir != null) {
-                    val loadFile = java.io.File(gpuDir, "load")
-                    if (loadFile.exists()) {
-                        gpuPath = loadFile.absolutePath
-                        useDevfreq = true
-                    }
-                }
-            } catch (_: Exception) {}
-        }
-
-        while (isActive) {
-            try {
-                if (gpuPath != null) {
-                    val text = java.io.File(gpuPath).readText().trim()
-                    if (useDevfreq) {
-                        // devfreq format: "busy_time total_time"
-                        val parts = text.split("\\s+".toRegex())
-                        if (parts.size >= 2) {
-                            val busy = parts[0].toLongOrNull() ?: 0
-                            val total = parts[1].toLongOrNull() ?: 1
-                            gpuUsage.value = ((busy * 100) / total.coerceAtLeast(1)).toInt()
-                                .coerceIn(0, 100)
-                        }
-                    } else {
-                        // kgsl format: "xx %" or "xx"
-                        val pct = text.replace("%", "").trim().split("\\s+".toRegex())[0].toIntOrNull()
-                        if (pct != null) {
-                            gpuUsage.value = pct.coerceIn(0, 100)
-                        }
-                    }
-                } else {
-                    // Last resort: try reading via Runtime (bypasses direct Java file SELinux)
-                    val process = Runtime.getRuntime().exec(arrayOf("cat", kgslPath))
-                    val result = process.inputStream.bufferedReader().readText().trim()
-                    process.waitFor()
-                    if (result.isNotEmpty()) {
-                        val pct = result.replace("%", "").trim().split("\\s+".toRegex())[0].toIntOrNull()
-                        if (pct != null) {
-                            gpuUsage.value = pct.coerceIn(0, 100)
-                            gpuPath = kgslPath // Cache successful path
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-            delay(1000)
-        }
-    }
-
-    return gpuUsage
-}
-
-// ── CPU Frequency Monitor (highest active core) ──
-@Composable
-fun rememberCpuFrequency(): MutableState<String> {
-    val cpuFreq = remember { mutableStateOf("-- GHz") }
-
-    LaunchedEffect(Unit) {
-        // Find all CPU frequency paths
-        val cpuDir = java.io.File("/sys/devices/system/cpu/")
-        val cpuFreqPaths = try {
-            cpuDir.listFiles()
-                ?.filter { it.name.matches(Regex("cpu\\d+")) }
-                ?.mapNotNull { dir ->
-                    val freqFile = java.io.File(dir, "cpufreq/scaling_cur_freq")
-                    if (freqFile.exists()) freqFile else null
-                }
-                ?: emptyList()
-        } catch (_: Exception) { emptyList() }
-
-        while (isActive) {
-            try {
-                var maxFreqKhz = 0L
-                for (path in cpuFreqPaths) {
-                    val khz = path.readText().trim().toLongOrNull() ?: 0L
-                    if (khz > maxFreqKhz) maxFreqKhz = khz
-                }
-                if (maxFreqKhz > 0) {
-                    val ghz = maxFreqKhz / 1_000_000.0
-                    cpuFreq.value = if (ghz >= 1.0) {
-                        String.format("%.1f GHz", ghz)
-                    } else {
-                        "${maxFreqKhz / 1000} MHz"
-                    }
-                }
-            } catch (_: Exception) {}
-            delay(1000)
-        }
-    }
-
-    return cpuFreq
-}
-
-// ── GPU Frequency Monitor (Adreno kgsl) — multi-sample peak ──
-@Composable
-fun rememberGpuFrequency(): MutableState<String> {
-    val gpuFreq = remember { mutableStateOf("-- MHz") }
-
-    LaunchedEffect(Unit) {
-        // GPU clock paths for Adreno
-        val gpuClkPath = "/sys/class/kgsl/kgsl-3d0/gpuclk"
-        val devfreqPath = "/sys/class/kgsl/kgsl-3d0/devfreq/cur_freq"
-
-        // Read initial value immediately (no 1s wait)
-        try {
-            val hz = java.io.File(gpuClkPath).readText().trim().toLongOrNull()
-                ?: java.io.File(devfreqPath).readText().trim().toLongOrNull()
-                ?: 0L
-            if (hz > 0) gpuFreq.value = "${hz / 1_000_000} MHz"
-        } catch (_: Exception) {}
-
-        // Then sample continuously
-        while (isActive) {
-            try {
-                // Sample 5 times over 1 second to catch peak freq
-                // (msm-adreno-tz governor fluctuates rapidly between frames)
-                val samples = mutableListOf<Long>()
-                repeat(5) {
-                    val hz = java.io.File(gpuClkPath).readText().trim().toLongOrNull()
-                        ?: java.io.File(devfreqPath).readText().trim().toLongOrNull()
-                        ?: 0L
-                    if (hz > 0) samples.add(hz)
-                    delay(200)
-                }
-                if (samples.isNotEmpty()) {
-                    val peakHz = samples.max()
-                    val mhz = peakHz / 1_000_000
-                    gpuFreq.value = "$mhz MHz"
-                }
-            } catch (_: Exception) {
-                delay(1000)
-            }
-        }
-    }
-
-    return gpuFreq
-}
-
-// ══════════════════════════════════════════════════════════════════
-// Feature: RAM Usage Monitor
-// ══════════════════════════════════════════════════════════════════
-
-data class RamInfo(
-    val totalGb: Float = 0f,
-    val usedGb: Float = 0f,
-    val usagePercent: Float = 0f,
-    val swapTotalGb: Float = 0f,
-    val swapUsedGb: Float = 0f,
-    val swapPercent: Float = 0f,
-)
-
-/** Parse a "Key:  12345 kB" line from /proc/meminfo into GiB. */
-private fun meminfoGb(lines: Map<String, Long>, key: String): Float =
-    (lines[key] ?: 0L) / 1_048_576f
-
-@Composable
-fun rememberRamUsage(): RamInfo {
-    val context = LocalContext.current
-    var ramInfo by remember { mutableStateOf(RamInfo()) }
-
-    LaunchedEffect(Unit) {
-        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        while (true) {
-            try {
-                val memInfo = ActivityManager.MemoryInfo()
-                am.getMemoryInfo(memInfo)
-                val totalGb = memInfo.totalMem / 1_073_741_824f
-                val availGb = memInfo.availMem / 1_073_741_824f
-                val usedGb = totalGb - availGb
-
-                // Swap/zram detail from /proc/meminfo (values in kB)
-                val meminfo = runCatching {
-                    java.io.File("/proc/meminfo").readLines()
-                        .mapNotNull { line ->
-                            val parts = line.split(':')
-                            if (parts.size == 2) {
-                                val kb = parts[1].trim().removeSuffix(" kB").toLongOrNull()
-                                kb?.let { parts[0] to it }
-                            } else null
-                        }.toMap()
-                }.getOrDefault(emptyMap())
-                val swapTotal = meminfoGb(meminfo, "SwapTotal")
-                val swapFree = meminfoGb(meminfo, "SwapFree")
-                val swapUsed = (swapTotal - swapFree).coerceAtLeast(0f)
-
-                ramInfo = RamInfo(
-                    totalGb = totalGb,
-                    usedGb = usedGb,
-                    usagePercent = (usedGb / totalGb * 100f).coerceIn(0f, 100f),
-                    swapTotalGb = swapTotal,
-                    swapUsedGb = swapUsed,
-                    swapPercent = if (swapTotal > 0f)
-                        (swapUsed / swapTotal * 100f).coerceIn(0f, 100f) else 0f,
-                )
-            } catch (_: Exception) {}
-            kotlinx.coroutines.delay(3000L)
-        }
-    }
-
-    return ramInfo
-}
-
-// ══════════════════════════════════════════════════════════════════
-// Feature: Thermal Throttle Indicator
-// ══════════════════════════════════════════════════════════════════
-
-/** Returns true when CPU is thermally throttled (current freq < 90% of max freq). */
-@Composable
-fun rememberCpuThrottle(): State<Boolean> {
-    val throttled = remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            try {
-                // Read current freq of big core (cpu7 on SM8735)
-                val curFreq = java.io.File("/sys/devices/system/cpu/cpu7/cpufreq/scaling_cur_freq")
-                    .readText().trim().toLongOrNull() ?: 0L
-                val maxFreq = java.io.File("/sys/devices/system/cpu/cpu7/cpufreq/scaling_max_freq")
-                    .readText().trim().toLongOrNull() ?: 0L
-                throttled.value = maxFreq > 0 && curFreq < (maxFreq * 0.85)
-            } catch (_: Exception) {
-                throttled.value = false
-            }
-            kotlinx.coroutines.delay(2000L)
-        }
-    }
-
-    return throttled
-}
 
 // ══════════════════════════════════════════════════════════════════
 // Feature: Frametime Graph with 1% / 0.1% Low

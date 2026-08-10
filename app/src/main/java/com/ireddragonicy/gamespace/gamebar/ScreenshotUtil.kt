@@ -43,12 +43,13 @@ object ScreenshotUtil {
         val timeoutHandler = Handler(Looper.getMainLooper())
         var unbound = false
         var timeoutRunnable: Runnable? = null
+        var connection: ServiceConnection? = null
 
         fun cleanup() {
             if (!unbound) {
                 unbound = true
                 timeoutRunnable?.let(timeoutHandler::removeCallbacks)
-                runCatching { context.unbindService(connection) }
+                connection?.let { runCatching { context.unbindService(it) } }
             }
         }
 
@@ -68,7 +69,7 @@ object ScreenshotUtil {
             true
         }
 
-        val connection = object : ServiceConnection {
+        connection = object : ServiceConnection {
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                 if (service == null) return
                 try {

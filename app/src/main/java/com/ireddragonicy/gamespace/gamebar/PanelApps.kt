@@ -134,6 +134,7 @@ fun VerticalAppSidebar(
     sidebarMode: Int = SidebarMode.MODE_GAME,
     isRecording: Boolean = false,
     onRecordClick: () -> Unit = {},
+    onRecordLongClick: () -> Unit = {},
     onDockEdited: ((pinned: List<String>, newlyHidden: Set<String>) -> Unit)? = null,
     onAddApp: ((String) -> Unit)? = null,
     isHiddenApp: (String) -> Boolean = { false },
@@ -148,6 +149,16 @@ fun VerticalAppSidebar(
     val context = LocalContext.current
     var isEditing by remember { mutableStateOf(false) }
     var showAppPicker by remember { mutableStateOf(false) }
+
+    // Screen recording is an external SystemUI service; poll its state so the
+    // counter stops promptly after the recording actually ends (service teardown
+    // can lag the STOP command by seconds).
+    LaunchedEffect(Unit) {
+        while (true) {
+            tileRepository.refreshScreenRecordState()
+            kotlinx.coroutines.delay(2000)
+        }
+    }
 
     // Local editable mirror of the dock. Synced from the provider flow on
     // every emission — EXCEPT while the user is editing or picking, so a
@@ -308,10 +319,16 @@ fun VerticalAppSidebar(
                                 if (isRecording) MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
                                 else Color.White.copy(alpha = 0.1f)
                             )
-                            .clickable {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onRecordClick()
-                            },
+                            .combinedClickable(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onRecordClick()
+                                },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    onRecordLongClick()
+                                },
+                            ),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         // Top half: Icon

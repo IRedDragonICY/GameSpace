@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -112,7 +113,7 @@ private fun BluetoothDevicesContent() {
     var devices by remember { mutableStateOf<List<BtDeviceRow>>(emptyList()) }
 
     fun markConnected(deviceId: String, connected: Boolean) {
-        connectedRef.put(deviceId, connected)
+        connectedRef.put(deviceId, connected to SystemClock.elapsedRealtime())
         devices = devices.map { row ->
             if (row.device.address == deviceId) row.copy(connected = connected) else row
         }
@@ -128,9 +129,14 @@ private fun BluetoothDevicesContent() {
     }
 
     fun toggleDeviceConnection(row: BtDeviceRow) {
+        val targetEnabled = !row.connected
+        val methodName = if (targetEnabled) "connect" else "disconnect"
         runCatching {
-            val methodName = if (row.connected) "disconnect" else "connect"
             row.device.javaClass.getMethod(methodName).invoke(row.device)
+            // Optimistic UI update; the ACL broadcasts confirm/correct it.
+            markConnected(row.device.address, targetEnabled)
+        }.onFailure {
+            android.util.Log.w("BluetoothPanel", "toggleDeviceConnection($methodName) failed", it)
         }
     }
 
@@ -177,6 +183,15 @@ private fun BluetoothDevicesContent() {
         isEnabled = runCatching { adapter?.isEnabled ?: false }.getOrDefault(false)
         syncDevices()
         onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+
+    // Periodic re-sync: some stacks never emit ACL broadcasts for a
+    // reflection-driven connect/disconnect, so trust polling too.
+    LaunchedEffect(adapter) {
+        while (true) {
+            kotlinx.coroutines.delay(3000)
+            syncDevices()
+        }
     }
 
     Column(
@@ -290,12 +305,22 @@ private fun BluetoothDevicesContent() {
     }
 }
 
-private val connectedRef = android.util.ArrayMap<String, Boolean>()
+private val connectedRef = android.util.ArrayMap<String, Pair<Boolean, Long>>()
 
-private fun isDeviceConnected(device: BluetoothDevice): Boolean =
-    connectedRef[device.address] ?: runCatching {
+/**
+ * Optimistic ACL state with a time-to-live: broadcast/reflection updates stay
+ * authoritative immediately after a tap, but stale entries expire so polling
+ * re-reads the real state.
+ */
+private fun isDeviceConnected(device: BluetoothDevice): Boolean {
+    val cached = connectedRef[device.address]
+    if (cached != null && SystemClock.elapsedRealtime() - cached.second < 10_000L) {
+        return cached.first
+    }
+    return runCatching {
         device.javaClass.getMethod("isConnected").invoke(device) as? Boolean
     }.getOrDefault(false) ?: false
+}
 
 @Composable
 private fun IconCompat(

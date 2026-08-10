@@ -679,6 +679,7 @@ class GameSidebar(
                             sidebarMode = mode,
                             isRecording = tileRepository.screenRecordingActive.value,
                             onRecordClick = { toggleGameRecording() },
+                            onRecordLongClick = { tileRepository.showScreenRecordChooser.value = true },
                             onDockEdited = { pinned, hidden -> quickStart.editDock(mode, pinned, hidden) },
                             onAddApp = { pkg -> quickStart.pinApp(mode, pkg) },
                             isHiddenApp = { pkg -> quickStart.isHidden(mode, pkg) },

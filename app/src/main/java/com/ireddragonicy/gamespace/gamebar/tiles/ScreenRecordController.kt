@@ -89,14 +89,26 @@ class ScreenRecordController @Inject constructor(
             )
             context.startForegroundService(
                 Intent("com.android.systemui.screenrecord.STOP").apply { this.component = component })
+            // The service takes a while to fully tear down (projection stop), so
+            // re-check a few times — a single 500ms refresh can miss the change
+            // and leave the panel showing a running counter forever.
             Handler(Looper.getMainLooper()).postDelayed({ refresh() }, 500)
+            Handler(Looper.getMainLooper()).postDelayed({ refresh() }, 2000)
+            Handler(Looper.getMainLooper()).postDelayed({ refresh() }, 4000)
         } catch (e: Exception) {
             Log.e("ScreenRecordCtrl", "Failed to stop screen recording", e)
         }
     }
 
     fun refresh() {
-        val running = context.isServiceRunning("com.android.systemui.screenrecord.RecordingService") ||
+        // getRunningServices is deprecated and stale on modern Android, so also
+        // consult the actual projection state as ground truth.
+        val projectionRunning = runCatching {
+            val mpm = context.getSystemService(android.media.projection.MediaProjectionManager::class.java)
+            mpm.activeProjectionInfos.any { it.packageName == "com.android.systemui" }
+        }.getOrDefault(false)
+        val running = projectionRunning ||
+            context.isServiceRunning("com.android.systemui.screenrecord.RecordingService") ||
             context.isServiceRunning("com.android.systemui.screenrecord.service.ScreenRecordingService")
         panelState.screenRecordingActive.value = running
         if (running && panelState.screenRecordingStartElapsedMs.value == 0L) {

@@ -170,6 +170,24 @@ private fun VideoToolboxCardInner(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            // ── SCREEN RECORD TARGET CHOOSER (inline page) ─────────────
+            // Same constraints as the game panel: window dialogs are impossible
+            // in the overlay ComposeView (BadTokenException), and this card does
+            // not render GamePanelContent, so the chooser lives here as a page.
+            if (tileRepository.showScreenRecordChooser.value) {
+                ScreenRecordChooserPanel(
+                    onClose = { tileRepository.showScreenRecordChooser.value = false },
+                    onCurrentGame = {
+                        tileRepository.showScreenRecordChooser.value = false
+                        tileRepository.toggleScreenRecord(targetGameOnly = true)
+                    },
+                    onFullScreen = {
+                        tileRepository.showScreenRecordChooser.value = false
+                        tileRepository.toggleScreenRecord(targetGameOnly = false)
+                    },
+                )
+                return@Column
+            }
             // ── Header ──────────────────────────────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),

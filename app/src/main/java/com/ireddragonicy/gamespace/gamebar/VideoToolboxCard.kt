@@ -232,7 +232,7 @@ private fun VideoToolboxCardInner(
                     label = stringResource(R.string.video_toolbox_screenshot),
                     active = false,
                     onClick = {
-                        context.sendBroadcast(Intent("android.intent.action.SCREENSHOT"))
+                        ScreenshotUtil.takeScreenshot(context)
                     },
                     modifier = Modifier.weight(1f),
                 )

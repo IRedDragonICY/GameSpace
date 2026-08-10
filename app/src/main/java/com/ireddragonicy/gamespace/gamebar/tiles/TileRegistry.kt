@@ -159,7 +159,7 @@ class TileRegistry @Inject constructor(
         // B1: the two platform actions that actually work, kept as real tiles.
         add(FixedActionTile("screenshot", context.getString(R.string.tile_screenshot),
             R.drawable.materialsymbols_ic_screenshot_rounded_filled) {
-            context.sendBroadcast(Intent("android.intent.action.SCREENSHOT"))
+            com.ireddragonicy.gamespace.gamebar.ScreenshotUtil.takeScreenshot(context)
         })
 
         if (SystemProperties.getBoolean("persist.sys.target_supports_touch_boost", false)) {

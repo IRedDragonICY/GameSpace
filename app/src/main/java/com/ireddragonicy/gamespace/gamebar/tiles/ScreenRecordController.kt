@@ -102,10 +102,12 @@ class ScreenRecordController @Inject constructor(
 
     fun refresh() {
         // getRunningServices is deprecated and stale on modern Android, so also
-        // consult the actual projection state as ground truth.
+        // consult the actual projection state as ground truth
+        // (getActiveProjectionInfo is @hide here → reflection).
         val projectionRunning = runCatching {
             val mpm = context.getSystemService(android.media.projection.MediaProjectionManager::class.java)
-            mpm.activeProjectionInfos.any { it.packageName == "com.android.systemui" }
+            val active = mpm.javaClass.getMethod("getActiveProjectionInfo").invoke(mpm)
+            active != null
         }.getOrDefault(false)
         val running = projectionRunning ||
             context.isServiceRunning("com.android.systemui.screenrecord.RecordingService") ||

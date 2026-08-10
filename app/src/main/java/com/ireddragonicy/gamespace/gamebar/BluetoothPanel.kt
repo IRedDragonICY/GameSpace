@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -46,35 +45,55 @@ import androidx.compose.ui.unit.sp
 import com.ireddragonicy.gamespace.R
 
 /**
- * Bluetooth devices window inspired by the system QS bluetooth panel:
+ * Bluetooth devices page (rendered inline inside the panel, mirroring
+ * PingDetailsPanel / TunerScreen) inspired by the system QS bluetooth panel:
  * a master on/off switch plus a list of paired devices that can be tapped
  * to connect or disconnect.
+ *
+ * NOTE: must NOT use AlertDialog/Dialog — the panel is hosted in an overlay
+ * ComposeView (service context) whose window token is null, so window-based
+ * Compose dialogs crash with BadTokenException.
  */
 @Composable
-fun BluetoothDevicesDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = PanelTheme.BaseDark,
-        shape = chamferShape(),
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconCompat(
-                    R.drawable.materialsymbols_ic_bluetooth_rounded_filled,
-                    contentDescription = null,
-                    tint = LocalPanelAccent.current,
-                    size = 18.dp,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("Bluetooth", color = PanelTheme.TextPrimary, fontWeight = FontWeight.Bold)
-            }
-        },
-        text = { BluetoothDevicesContent() },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Done", color = LocalPanelAccent.current, fontWeight = FontWeight.Bold)
-            }
-        },
-    )
+fun BluetoothDevicesPanel(onClose: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // ── Header: title + close on one 32dp row ──
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconCompat(
+                R.drawable.materialsymbols_ic_bluetooth_rounded_filled,
+                contentDescription = null,
+                tint = LocalPanelAccent.current,
+                size = 18.dp,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "BLUETOOTH",
+                color = PanelTheme.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.weight(1f),
+            )
+            IconCompat(
+                R.drawable.materialsymbols_ic_close_rounded_filled,
+                contentDescription = "Close",
+                tint = PanelTheme.TextDim,
+                size = 20.dp,
+                modifier = Modifier.clickable { onClose() },
+            )
+        }
+        BluetoothDevicesContent()
+    }
 }
 
 private data class BtDeviceRow(
@@ -284,11 +303,12 @@ private fun IconCompat(
     contentDescription: String?,
     tint: Color,
     size: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
 ) {
     androidx.compose.material3.Icon(
         painter = painterResource(resId),
         contentDescription = contentDescription,
         tint = tint,
-        modifier = Modifier.size(size),
+        modifier = modifier.size(size),
     )
 }

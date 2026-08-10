@@ -210,11 +210,9 @@ private fun GamePanelCardInner(
         }
 
         // ── BLUETOOTH DEVICES WINDOW (like QS bluetooth panel) ──────
-        if (tileRepository.showBluetoothDevices.value) {
-            BluetoothDevicesDialog(
-                onDismiss = { tileRepository.showBluetoothDevices.value = false }
-            )
-        }
+        // NOTE: rendered as an inline page — window dialogs (AlertDialog) are
+        // impossible here: the panel lives in an overlay ComposeView whose
+        // context (service) has no window token (BadTokenException).
     }
 }
 
@@ -260,6 +258,10 @@ fun GamePanelContent(
             TunerScreen(
                 tileRepository = tileRepository,
                 onClose = { tileRepository.showPerfTuner.value = false }
+            )
+        } else if (tileRepository.showBluetoothDevices.value) {
+            BluetoothDevicesPanel(
+                onClose = { tileRepository.showBluetoothDevices.value = false }
             )
         } else if (!isEditing) {
             HeaderInfoBar(

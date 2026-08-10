@@ -100,7 +100,9 @@ private fun BluetoothDevicesContent() {
     }
 
     fun syncDevices() {
-        val bonded = runCatching { adapter?.bondedDevices?.toList() }.getOrDefault(emptyList())
+        val bonded = runCatching { adapter?.bondedDevices?.toList() }
+            .getOrDefault(emptyList())
+            .orEmpty()
         devices = bonded
             .map { device -> BtDeviceRow(device, isDeviceConnected(device)) }
             .sortedWith(compareByDescending<BtDeviceRow> { it.connected }.thenBy { it.device.name })
@@ -127,12 +129,18 @@ private fun BluetoothDevicesContent() {
                         syncDevices()
                     }
                     BluetoothDevice.ACTION_ACL_CONNECTED -> {
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)?.let {
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_DEVICE,
+                            BluetoothDevice::class.java
+                        )?.let {
                             markConnected(it.address, true)
                         }
                     }
                     BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)?.let {
+                        intent.getParcelableExtra(
+                            BluetoothDevice.EXTRA_DEVICE,
+                            BluetoothDevice::class.java
+                        )?.let {
                             markConnected(it.address, false)
                         }
                     }
@@ -268,7 +276,7 @@ private val connectedRef = android.util.ArrayMap<String, Boolean>()
 private fun isDeviceConnected(device: BluetoothDevice): Boolean =
     connectedRef[device.address] ?: runCatching {
         device.javaClass.getMethod("isConnected").invoke(device) as? Boolean
-    }.getOrDefault(false)
+    }.getOrDefault(false) ?: false
 
 @Composable
 private fun IconCompat(

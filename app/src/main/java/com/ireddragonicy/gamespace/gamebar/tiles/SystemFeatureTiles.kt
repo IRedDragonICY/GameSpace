@@ -10,8 +10,6 @@ import android.hardware.camera2.CameraManager
 import android.media.MediaRouter
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -84,19 +82,14 @@ class BluetoothTile(
     private val enabledState = mutableStateOf(
         runCatching { adapter?.isEnabled ?: false }.getOrDefault(false)
     )
-    private val mainHandler = Handler(Looper.getMainLooper())
 
     @Composable
     override fun observeEnabled(): State<Boolean> {
-        DisposableEffect(adapter) {
-            val callback = object : BluetoothAdapter.AdapterStateCallback {
-                override fun onStateChange(state: Int) {
-                    enabledState.value = state == BluetoothAdapter.STATE_ON
-                }
+        LaunchedEffect(Unit) {
+            while (true) {
+                enabledState.value = runCatching { adapter?.isEnabled ?: false }.getOrDefault(false)
+                delay(1600)
             }
-            runCatching { adapter?.registerAdapterStateCallback(callback, mainHandler) }
-            enabledState.value = runCatching { adapter?.isEnabled ?: false }.getOrDefault(false)
-            onDispose { runCatching { adapter?.unregisterAdapterStateCallback(callback) } }
         }
         return enabledState
     }
@@ -289,11 +282,18 @@ class NfcTile(
     override val icon: Int,
     private val context: Context,
 ) : SystemToggleTile(id, label, icon) {
+    private val nfcAdapter by lazy {
+        context.getSystemService(android.nfc.NfcAdapter::class.java)
+    }
+
     override fun readEnabled(): Boolean =
-        Settings.Secure.getInt(context.contentResolver, Settings.Secure.NFC_ON, 1) == 1
+        runCatching { nfcAdapter?.isEnabled ?: false }.getOrDefault(false)
 
     override fun writeEnabled(enabled: Boolean) {
-        Settings.Secure.putInt(context.contentResolver, Settings.Secure.NFC_ON, if (enabled) 1 else 0)
+        runCatching {
+            val method = nfcAdapter?.javaClass?.getMethod(if (enabled) "enable" else "disable")
+            method?.invoke(nfcAdapter)
+        }
     }
 }
 
@@ -351,18 +351,7 @@ class BatterySaverTile(
         runCatching { powerManager.isPowerSaveMode }.getOrDefault(false)
 
     override fun writeEnabled(enabled: Boolean) {
-        val invoked = setPowerSaveMethod?.let { method ->
-            runCatching { method.invoke(powerManager, enabled) }.isSuccess
-        } ?: false
-        if (!invoked) {
-            runCatching {
-                Settings.Global.putInt(
-                    context.contentResolver,
-                    Settings.Global.BATTERY_SAVER_MODE_ENABLED,
-                    if (enabled) 1 else 0
-                )
-            }
-        }
+        runCatching { setPowerSaveMethod?.invoke(powerManager, enabled) }
     }
 }
 
@@ -374,19 +363,21 @@ class DarkModeTile(
     override val icon: Int,
     private val context: Context,
 ) : SystemToggleTile(id, label, icon) {
+    private val uiModeManager by lazy {
+        context.getSystemService(android.app.UiModeManager::class.java)
+    }
+
     override fun readEnabled(): Boolean =
-        Settings.Secure.getInt(
-            context.contentResolver,
-            Settings.Secure.UI_MODE_NIGHT_MODE,
-            -1
-        ) == Settings.Secure.MODE_NIGHT_YES
+        runCatching { uiModeManager.getNightMode() == android.app.UiModeManager.MODE_NIGHT_YES }
+            .getOrDefault(false)
 
     override fun writeEnabled(enabled: Boolean) {
-        Settings.Secure.putInt(
-            context.contentResolver,
-            Settings.Secure.UI_MODE_NIGHT_MODE,
-            if (enabled) Settings.Secure.MODE_NIGHT_YES else Settings.Secure.MODE_NIGHT_NO
-        )
+        runCatching {
+            uiModeManager.setNightMode(
+                if (enabled) android.app.UiModeManager.MODE_NIGHT_YES
+                else android.app.UiModeManager.MODE_NIGHT_NO
+            )
+        }
     }
 }
 
@@ -423,12 +414,12 @@ class NightLightTile(
     private val context: Context,
 ) : SystemToggleTile(id, label, icon) {
     override fun readEnabled(): Boolean =
-        Settings.Secure.getInt(context.contentResolver, Settings.Secure.NIGHT_DISPLAY_ACTIVE, 0) == 1
+        Settings.Secure.getInt(context.contentResolver, "night_display_activated", 0) == 1
 
     override fun writeEnabled(enabled: Boolean) {
         Settings.Secure.putInt(
             context.contentResolver,
-            Settings.Secure.NIGHT_DISPLAY_ACTIVE,
+            "night_display_activated",
             if (enabled) 1 else 0
         )
     }
@@ -499,23 +490,61 @@ class CastTile(
 
     private val router by lazy { context.getSystemService(MediaRouter::class.java) }
     private val enabledState = mutableStateOf(false)
+    private var activeRoute: MediaRouter.RouteInfo? = null
+    private var candidateRoute: MediaRouter.RouteInfo? = null
 
     private val callback = object : MediaRouter.Callback() {
         override fun onRouteSelected(router: MediaRouter, type: Int, info: MediaRouter.RouteInfo) {
-            enabledState.value = !info.isDefault
+            activeRoute = info.takeIf { !it.isDefault }
+            enabledState.value = activeRoute != null
         }
 
         override fun onRouteUnselected(router: MediaRouter, type: Int, info: MediaRouter.RouteInfo) {
-            enabledState.value = false
+            if (activeRoute == info) {
+                activeRoute = null
+                enabledState.value = false
+            }
         }
+
+        override fun onRouteAdded(router: MediaRouter, info: MediaRouter.RouteInfo) {
+            if (candidateRoute == null && !info.isDefault && info.isEnabled) {
+                candidateRoute = info
+            }
+        }
+
+        override fun onRouteRemoved(router: MediaRouter, info: MediaRouter.RouteInfo) {
+            if (candidateRoute == info) candidateRoute = null
+        }
+
+        override fun onRouteChanged(router: MediaRouter, info: MediaRouter.RouteInfo) {}
+
+        override fun onRouteGrouped(
+            router: MediaRouter,
+            info: MediaRouter.RouteInfo,
+            group: MediaRouter.RouteGroup,
+            index: Int
+        ) {}
+
+        override fun onRouteUngrouped(
+            router: MediaRouter,
+            info: MediaRouter.RouteInfo,
+            group: MediaRouter.RouteGroup
+        ) {}
+
+        override fun onRouteVolumeChanged(router: MediaRouter, info: MediaRouter.RouteInfo) {}
     }
 
     @Composable
     override fun observeEnabled(): State<Boolean> {
         DisposableEffect(Unit) {
             runCatching {
-                enabledState.value = !router.selectedRoute.isDefault
-                router.addCallback(MediaRouter.ROUTE_TYPE_ANY, callback)
+                activeRoute = router.selectedRoute.takeIf { !it.isDefault }
+                enabledState.value = activeRoute != null
+                router.addCallback(
+                    MediaRouter.ROUTE_TYPE_LIVE_AUDIO or MediaRouter.ROUTE_TYPE_LIVE_VIDEO or
+                        MediaRouter.ROUTE_TYPE_USER,
+                    callback
+                )
             }
             onDispose {
                 runCatching { router.removeCallback(callback) }
@@ -526,10 +555,10 @@ class CastTile(
 
     override fun toggle() {
         runCatching {
-            if (enabledState.value) {
+            if (activeRoute != null) {
                 router.defaultRoute.select()
             } else {
-                router.getRoutes().firstOrNull { route -> !route.isDefault && route.isEnabled }?.select()
+                candidateRoute?.takeIf { it.isEnabled && !it.isDefault }?.select()
             }
         }
     }

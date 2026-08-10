@@ -233,8 +233,7 @@ class TileRegistry @Inject constructor(
     }
 
     /** Adds the ROM-agnostic system tiles to [buildDefaultTiles]. */
-    @Suppress("unused")
-    private fun addSystemTiles() {
+    private fun MutableList<TileAction>.addSystemTiles() {
         systemTileIds.clear()
 
         systemTileIds += "bluetooth"

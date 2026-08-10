@@ -186,29 +186,6 @@ private fun GamePanelCardInner(
             TouchTesterExpanded(tileRepository) { tileRepository.touchTesterExpanded.value = false }
         }
 
-        // ── SCREEN RECORD CHOOSER DIALOG ─────────────────────────────
-        if (tileRepository.showScreenRecordChooser.value) {
-            AlertDialog(
-                onDismissRequest = { tileRepository.showScreenRecordChooser.value = false },
-                title = { Text("Screen Record", color = PanelTheme.TextPrimary, fontWeight = FontWeight.Bold) },
-                text = { Text("Pilih area yang ingin direkam:", color = PanelTheme.TextDim) },
-                containerColor = PanelTheme.BaseDark,
-                shape = chamferShape(),
-                confirmButton = {
-                    TextButton(onClick = {
-                        tileRepository.showScreenRecordChooser.value = false
-                        tileRepository.toggleScreenRecord(targetGameOnly = true)
-                    }) { Text("Current Game", color = LocalPanelAccent.current, fontWeight = FontWeight.Bold) }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        tileRepository.showScreenRecordChooser.value = false
-                        tileRepository.toggleScreenRecord(targetGameOnly = false)
-                    }) { Text("Full Screen", color = PanelTheme.TextDim) }
-                }
-            )
-        }
-
         // ── BLUETOOTH DEVICES WINDOW (like QS bluetooth panel) ──────
         // NOTE: rendered as an inline page — window dialogs (AlertDialog) are
         // impossible here: the panel lives in an overlay ComposeView whose
@@ -259,6 +236,18 @@ fun GamePanelContent(
                 tileRepository = tileRepository,
                 onClose = { tileRepository.showPerfTuner.value = false }
             )
+        } else if (tileRepository.showScreenRecordChooser.value) {
+            ScreenRecordChooserPanel(
+                onClose = { tileRepository.showScreenRecordChooser.value = false },
+                onCurrentGame = {
+                    tileRepository.showScreenRecordChooser.value = false
+                    tileRepository.toggleScreenRecord(targetGameOnly = true)
+                },
+                onFullScreen = {
+                    tileRepository.showScreenRecordChooser.value = false
+                    tileRepository.toggleScreenRecord(targetGameOnly = false)
+                },
+            )
         } else if (tileRepository.showBluetoothDevices.value) {
             BluetoothDevicesPanel(
                 onClose = { tileRepository.showBluetoothDevices.value = false }
@@ -288,6 +277,97 @@ fun GamePanelContent(
                 viewportHeight = viewportHeight,
                 onClose = { isEditing = false }
             )
+        }
+    }
+}
+
+/**
+ * Inline screen-record target chooser (replaces the window AlertDialog — see
+ * note in GamePanelCardInner).
+ */
+@Composable
+fun ScreenRecordChooserPanel(
+    onClose: () -> Unit,
+    onCurrentGame: () -> Unit,
+    onFullScreen: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "SCREEN RECORD",
+                color = PanelTheme.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.5.sp,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                painter = painterResource(id = R.drawable.materialsymbols_ic_close_rounded_filled),
+                contentDescription = "Close",
+                tint = PanelTheme.TextDim,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable { onClose() },
+            )
+        }
+        Text("Pilih area yang ingin direkam:", color = PanelTheme.TextDim, fontSize = 12.sp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.05f), chamferShape())
+                .clickable(onClick = onCurrentGame)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_action_record),
+                contentDescription = null,
+                tint = LocalPanelAccent.current,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Current Game",
+                color = PanelTheme.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(">", color = PanelTheme.TextDim, fontSize = 14.sp)
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.05f), chamferShape())
+                .clickable(onClick = onFullScreen)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_action_record),
+                contentDescription = null,
+                tint = PanelTheme.TextDim,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Full Screen",
+                color = PanelTheme.TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(">", color = PanelTheme.TextDim, fontSize = 14.sp)
         }
     }
 }

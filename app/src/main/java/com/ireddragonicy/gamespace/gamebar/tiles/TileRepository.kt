@@ -86,6 +86,7 @@ class TileRepository @Inject constructor(
     val touchTesterExpanded get() = panelState.touchTesterExpanded
     val gestureLockState get() = panelState.gestureLockState
     val showScreenRecordChooser get() = panelState.showScreenRecordChooser
+    val showBluetoothDevices get() = panelState.showBluetoothDevices
     val screenRecordingActive get() = panelState.screenRecordingActive
     val screenRecordingStarting get() = panelState.screenRecordingStarting
     val screenRecordingStartElapsedMs get() = panelState.screenRecordingStartElapsedMs

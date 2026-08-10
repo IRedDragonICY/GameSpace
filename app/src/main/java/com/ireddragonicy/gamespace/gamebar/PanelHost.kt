@@ -208,6 +208,13 @@ private fun GamePanelCardInner(
                 }
             )
         }
+
+        // ── BLUETOOTH DEVICES WINDOW (like QS bluetooth panel) ──────
+        if (tileRepository.showBluetoothDevices.value) {
+            BluetoothDevicesDialog(
+                onDismiss = { tileRepository.showBluetoothDevices.value = false }
+            )
+        }
     }
 }
 

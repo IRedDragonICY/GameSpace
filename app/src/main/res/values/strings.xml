@@ -192,7 +192,8 @@
     <string name="tile_screen_record">Screen Record</string>
     <string name="tile_game_record">Rec</string>
     <string name="tile_screenshot">Screenshot</string>
-    <string name="tile_lock_gesture">Lock Gesture</string>
+    <string name="tile_lock_gesture">Lock Gestures</string>
+    <string name="tile_rotation_lock">Rotation Lock</string>
     <string name="tile_afme">AFME</string>
     <string name="tile_map_controls">Map Controls</string>
 

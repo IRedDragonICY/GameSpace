@@ -20,6 +20,7 @@ class PanelStateStore @Inject constructor(
     val screenRecordingStarting = mutableStateOf(false)
     val screenRecordingStartElapsedMs = mutableStateOf(0L)
     val showScreenRecordChooser = mutableStateOf(false)
+    val showBluetoothDevices = mutableStateOf(false)
 
     // ── FPS Stats recording ──
     val fpsStatsRecordingState = mutableStateOf(false)

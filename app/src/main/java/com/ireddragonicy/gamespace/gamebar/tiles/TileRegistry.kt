@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.SystemProperties
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,8 +44,13 @@ class TileRegistry @Inject constructor(
     /** Discovered TileService tiles (system + apps) never default into a row. */
     private fun isQsTile(id: String) = id.startsWith("qs:")
 
+    /** Native system toggles (bluetooth, flashlight, ...) — pool only, never default. */
+    private val systemTileIds = mutableSetOf<String>()
+
+    private fun canAutoPlace(id: String) = !isQsTile(id) && id !in systemTileIds
+
     private val defaultQuickToggleIds = listOf(
-        "wifi", "mobile_data", "lock_gesture", "afme", "super_report", "touch_boost",
+        "wifi", "mobile_data", "bluetooth", "afme", "super_report", "touch_boost",
     )
 
     val allAvailableTiles: List<TileAction> get() = defaultTiles
@@ -77,7 +81,7 @@ class TileRegistry @Inject constructor(
         } else {
             val qt = _quickToggleOrder.toSet()
             _toolTileOrder.addAll(defaultTiles.map { it.id }
-                .filter { it !in qt && !isQsTile(it) })
+                .filter { it !in qt && canAutoPlace(it) })
         }
     }
 
@@ -95,7 +99,7 @@ class TileRegistry @Inject constructor(
         val qt = _quickToggleOrder.toSet()
         _toolTileOrder.clear()
         _toolTileOrder.addAll(defaultTiles.map { it.id }
-            .filter { it !in qt && !isQsTile(it) })
+            .filter { it !in qt && canAutoPlace(it) })
         saveTileOrder()
     }
 
@@ -157,13 +161,6 @@ class TileRegistry @Inject constructor(
             R.drawable.materialsymbols_ic_screenshot_rounded_filled) {
             context.sendBroadcast(Intent("android.intent.action.SCREENSHOT"))
         })
-        add(FixedActionTile("cast", context.getString(R.string.tile_cast),
-            R.drawable.materialsymbols_ic_cast_rounded_filled) {
-            runCatching {
-                context.startActivity(Intent(Settings.ACTION_CAST_SETTINGS)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            }
-        })
 
         if (SystemProperties.getBoolean("persist.sys.target_supports_touch_boost", false)) {
             val touchBoostState = mutableStateOf(SystemProperties.getInt("persist.sys.touchboost_enable", 0) == 1)
@@ -216,6 +213,11 @@ class TileRegistry @Inject constructor(
             panelState.fpsStatsRecordingState,
             setter = { it -> panelState.onFpsStatsToggle?.invoke(it) }))
 
+        // ── Native system toggles (bluetooth, flashlight, DND, ...) ──
+        // ROM-agnostic: public APIs + Settings only. Offered in the pool
+        // under the "System" group; never placed by default.
+        addSystemTiles()
+
         // ── Dynamically discovered TileServices (system + app QS tiles) ──
         // Offered in the "available tiles" pool only; never placed by default.
         qsTileCatalog.discoveredTiles.forEach { discovered ->
@@ -228,5 +230,81 @@ class TileRegistry @Inject constructor(
                 context = context,
             ))
         }
+    }
+
+    /** Adds the ROM-agnostic system tiles to [buildDefaultTiles]. */
+    @Suppress("unused")
+    private fun addSystemTiles() {
+        systemTileIds.clear()
+
+        systemTileIds += "bluetooth"
+        add(BluetoothTile("bluetooth", context.getString(R.string.tile_bluetooth),
+            R.drawable.materialsymbols_ic_bluetooth_rounded_filled, context) {
+            panelState.showBluetoothDevices.value = true
+        })
+
+        if (hasFlashlightSupport(context)) {
+            systemTileIds += "flashlight"
+            add(FlashlightTile("flashlight", context.getString(R.string.tile_flashlight),
+                R.drawable.materialsymbols_ic_flashlight_on_rounded_filled, context))
+        }
+
+        systemTileIds += "dnd"
+        add(DndTile("dnd", context.getString(R.string.tile_dnd),
+            R.drawable.materialsymbols_ic_do_not_disturb_on_rounded_filled, context))
+
+        systemTileIds += "airplane"
+        add(AirplaneTile("airplane", context.getString(R.string.tile_airplane_mode),
+            R.drawable.materialsymbols_ic_flight_rounded_filled, context))
+
+        systemTileIds += "auto_rotate"
+        add(AutoRotateTile("auto_rotate", context.getString(R.string.tile_auto_rotate),
+            R.drawable.materialsymbols_ic_screen_rotation_up_rounded_filled, context))
+
+        systemTileIds += "rotation_lock"
+        add(RotationLockTile("rotation_lock", context.getString(R.string.tile_rotation_lock),
+            R.drawable.materialsymbols_ic_rotate_right_rounded_filled, context))
+
+        systemTileIds += "location"
+        add(LocationTile("location", context.getString(R.string.tile_location),
+            R.drawable.materialsymbols_ic_location_on_rounded_filled, context))
+
+        if (hasNfcSupport(context)) {
+            systemTileIds += "nfc"
+            add(NfcTile("nfc", context.getString(R.string.tile_nfc),
+                R.drawable.materialsymbols_ic_nfc_rounded_filled, context))
+        }
+
+        systemTileIds += "hotspot"
+        add(HotspotTile("hotspot", context.getString(R.string.tile_hotspot),
+            R.drawable.materialsymbols_ic_wifi_tethering_rounded_filled, context))
+
+        systemTileIds += "battery_saver"
+        add(BatterySaverTile("battery_saver", context.getString(R.string.tile_battery_saver),
+            R.drawable.materialsymbols_ic_battery_saver_rounded_filled, context))
+
+        systemTileIds += "dark_mode"
+        add(DarkModeTile("dark_mode", context.getString(R.string.tile_dark_mode),
+            R.drawable.materialsymbols_ic_dark_mode_rounded_filled, context))
+
+        systemTileIds += "color_inversion"
+        add(ColorInversionTile("color_inversion", context.getString(R.string.tile_color_inversion),
+            R.drawable.materialsymbols_ic_invert_colors_rounded_filled, context))
+
+        systemTileIds += "night_light"
+        add(NightLightTile("night_light", context.getString(R.string.tile_night_light),
+            R.drawable.materialsymbols_ic_nights_stay_rounded_filled, context))
+
+        systemTileIds += "data_saver"
+        add(DataSaverTile("data_saver", context.getString(R.string.tile_data_saver),
+            R.drawable.materialsymbols_ic_data_saver_on_rounded_filled, context))
+
+        systemTileIds += "usb_tether"
+        add(UsbTetherTile("usb_tether", context.getString(R.string.tile_usb_tether),
+            R.drawable.materialsymbols_ic_usb_rounded_filled, context))
+
+        systemTileIds += "cast"
+        add(CastTile("cast", context.getString(R.string.tile_cast),
+            R.drawable.materialsymbols_ic_cast_rounded_filled, context))
     }
 }

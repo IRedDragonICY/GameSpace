@@ -1,0 +1,9 @@
+# MiThermal IPC: GameSpace (system_app, SET) <-> mi_thermal_engine (vendor, GET)
+persist.sys.mithermal.	u:object_r:mithermal_prop:s0
+
+# Video toolbox IPC: GameSpace (system_app, SET) <-> libstagefright in the player process (GET)
+persist.sys.videobox.	u:object_r:videobox_prop:s0
+
+# GameSpace dynamic properties (persist.sys.gamespace.game_uid, persist.sys.gamespace.sched_lib_extra, etc.)
+persist.sys.gamespace.	u:object_r:gamespace_prop:s0
+

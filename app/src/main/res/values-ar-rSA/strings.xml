@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: crDroid Android Project
+     SPDX-FileCopyrightText: Chaldeaprjkt
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Game Space -->
+    <string name="settings_title">وضع الألعاب</string>
+    <string name="app_selector_label">إختر لعبتك</string>
+    <string name="in_game_preferences_title">خيارات داخل اللعبة</string>
+    <string name="game_list_title">المكتبة</string>
+    <string name="app_search_title">بحث</string>
+    <string name="add_game">إضافة لُعبة</string>
+    <string name="launch_game">تشغيل اللعبة</string>
+    <!-- Quick start apps -->
+    <string name="quick_start_apps_title">تطبيقات البداية السريعة</string>
+    <string name="quick_start_apps_summary">حدد التطبيقات للتشغيل السريع</string>
+    <!-- Auto brightness -->
+    <string name="auto_brightness_disabled_title">تعطيل السطوع التلقائي</string>
+    <string name="auto_brightness_disabled_summary">حافظ على السطوع ثابتًا أثناء اللعب</string>
+    <!-- Three finger swipe -->
+    <string name="three_screenshot_disabled_summary">تعطيل مؤقت إيماءة التمرير بثلاثة أصابع أثناء اللعبة</string>
+    <string name="three_screenshot_disabled_title">تعطيل السحب بثلاثة أصابع لأخذ لقطة الشاشة</string>
+    <!-- Stay awake -->
+    <string name="stay_awake_title">البقاء في الوضع النشط</string>
+    <string name="stay_awake_summary">إبقاء الشاشة مضاءة أثناء اللعب</string>
+    <!-- Lock gesture -->
+    <string name="lock_gesture_title">قفل الايماءات</string>
+    <string name="lock_gesture_summary">تعطيل إيماءات الشاشة أثناء اللعب</string>
+    <!-- Suppress full screen intent -->
+    <string name="suppress_fullscreen_intent_title">منع أحداث الشاشة الكاملة</string>
+    <string name="suppress_fullscreen_intent_summary">منع أحداث ملء الشاشة مثل المكالمات الواردة من الظهور أثناء اللعب</string>
+    <!-- Per app settings -->
+    <string name="per_app_title">ضبط اللعبة</string>
+    <string name="per_app_mode_title">الوضع المفضل</string>
+    <string name="per_app_angle_title">استخدام واجهة المستخدم الجديدة (التجريبية)</string>
+    <string name="per_app_unregister">إزالة %1$s من المكتبة</string>
+    <!-- Disable ADB debugging -->
+    <string name="adb_disabled_title">تعطيل تصحيح أخطاء USB</string>
+    <string name="adb_disabled_summary">تعطيل مؤقت لوضع تصحيح أخطاء USB أثناء اللعب</string>
+    <!-- Ringer Mode -->
+    <string name="in_game_calls_title">وضع المكالمة</string>
+    <string name="in_game_calls_no_action">بلا إجراء</string>
+    <string name="in_game_calls_auto_answer">رد تلقائي</string>
+    <string name="in_game_calls_auto_reject">رفض تلقائي</string>
+    <string name="in_game_calls_received_number">مكالمة متلقاة منذ %1$s</string>
+    <string name="in_game_calls_rejected_number">مكالمة مرفوضة منذ%1$s</string>
+    <!-- Danmaku Notification Mode -->
+    <string name="danmaku_notification_mode_title">وضع إشعار Danmaku</string>
+    <string name="danmaku_notification_mode_summary">إظهار تنبيه Danmaku كما هو معروف باِسم تعليقات سريعة عندما تكون اللعبة نشطة</string>
+    <!-- Gamespace opacity -->
+    <string name="gamespace_menu_opacity_title">مستوى شفافية القائمة العائمة</string>
+    <!-- Bypass charging -->
+    <string name="bypass_charge_enabled_title">تجاوز الشحن</string>
+    <string name="bypass_charge_enabled_summary">تفعيل تجاوز الشحن أثناء لعب الألعاب</string>
+    <!-- Call overlay -->
+    <string name="call_overlay_enabled_title">عرض المكالمة</string>
+    <string name="call_overlay_enabled_summary">إظهار الحد الأدنى من تراكب المكالمات للإجابة / رفض المكالمات</string>
+    <!-- Ringer Mode Options -->
+    <string name="ringer_mode_title">وضع الرنين</string>
+    <string name="ringer_mode_silent">صامت</string>
+    <string name="ringer_mode_vibrate">إهتزاز</string>
+    <string name="ringer_mode_normal">عادي</string>
+    <string name="ringer_mode_no_change">لا تقم بالتغيير</string>
+    <!-- Game Mode Labels -->
+    <string name="game_mode_unsupported">غير مدعوم</string>
+    <string name="game_mode_balanced">متوازن</string>
+    <string name="game_mode_performance">نمط الاداء</string>
+    <string name="game_mode_battery">توفير البطارية</string>
+    <!-- Game Panel -->
+    <string name="save">حفظ</string>
+    <string name="panel_options">خيارات اللوحة</string>
+    <string name="brightness_slider">شريط السطوع</string>
+    <string name="fps_graph">مخطط الـFPS</string>
+    <string name="selected_tiles">المربعات المختارة</string>
+    <string name="available_tiles">المربعات المتاحة</string>
+    <string name="drag_tiles_here">اسحب المربعات هنا</string>
+    <string name="all_tiles_added">تم إضافة جميع المربعات</string>
+    <string name="fps_stats">صغرى %1$d | متوسط %2$d | عظمى %3$d</string>
+    <!-- Tile Labels -->
+    <string name="tile_danmaku">Danmaku</string>
+    <string name="tile_stay_awake">البقاء في الوضع النشط</string>
+    <string name="tile_wifi">واي فاي</string>
+    <string name="tile_dnd">وضع عدم الإزعاج</string>
+    <string name="tile_fps_info">معلومات FPS</string>
+    <string name="tile_auto_rotate">تدوير تلقائي</string>
+    <string name="tile_boost_memory">تعزيز الذاكرة</string>
+    <string name="tile_settings">الإعدادات</string>
+    <string name="tile_airplane_mode">وضع الطيران</string>
+    <string name="tile_bluetooth">البلوتوث</string>
+    <string name="tile_mobile_data">بيانات الجوال</string>
+    <string name="tile_touch_boost">تعزيز اللمس</string>
+    <string name="tile_flashlight">الكشاف</string>
+    <string name="tile_dark_mode">الوضع المظلم</string>
+    <string name="tile_location">الموقع</string>
+    <string name="tile_battery_saver">موفر البطارية</string>
+    <string name="tile_hotspot">نقطة اتصال</string>
+    <string name="tile_nfc">NFC</string>
+    <string name="tile_night_light">الإضاءة الليلية</string>
+    <string name="tile_aod">الشاشة الدائمة</string>
+    <string name="tile_data_saver">توفير البيانات</string>
+    <string name="tile_color_inversion">عكس الألوان</string>
+    <string name="tile_color_correction">تصحيح الألوان</string>
+    <string name="tile_reduce_brightness">تقليل السطوع</string>
+    <string name="tile_one_handed">الاستخدام بيد واحدة</string>
+    <string name="tile_heads_up">التنبيهات العلوية</string>
+    <string name="tile_auto_sync">تزامن تلقائي</string>
+    <string name="tile_camera_privacy">الكاميرا</string>
+    <string name="tile_mic_privacy">الميكروفون</string>
+    <string name="tile_work_profile">الملف الشخصي للعمل</string>
+    <string name="tile_usb_tether">الربط بUSB</string>
+    <string name="tile_dream">شاشة التوقف</string>
+    <string name="tile_reading_mode">وضع القراءة</string>
+    <string name="tile_power_share">مشاركة الطاقة</string>
+    <string name="tile_caffeine">الكافيين</string>
+    <string name="tile_vpn">الشبكة الافتراضية الخاصة</string>
+    <string name="tile_cast">إرسال</string>
+    <string name="tile_profiles">ملفات شخصية</string>
+    <string name="tile_smart_pixels">البكسلات الذكية</string>
+    <string name="tile_screen_record">تسجيل الشاشة</string>
+    <string name="tile_screenshot">لقطة الشاشة</string>
+    <!-- Icon Idle Opacity -->
+    <string name="icon_idle_opacity_title">عتامة الأيقونة الخمول</string>
+    <!-- Auto DND -->
+    <string name="auto_dnd_title">عدم الإزعاج تلقائياً</string>
+    <string name="auto_dnd_summary">تمكين DND تلقائياً أثناء اللعبة والاستعادة عند الانتهاء</string>
+    <!-- Controller Mapper -->
+    <string name="mapper_press_button">اضغط على زر على وحدة التحكم أو لوحة المفاتيح\u2026</string>
+    <string name="mapper_add_point">إضافة نقطة النقر</string>
+    <string name="mapper_delete_point">حذف نقطة النقر</string>
+    <string name="mapper_map_controls">أدوات التحكم في الوسائط</string>
+    <!-- Content Descriptions (Accessibility) -->
+    <string name="cd_reject">رفض</string>
+    <string name="cd_accept">قبول</string>
+    <string name="cd_caller_photo">صورة المتصل</string>
+    <string name="cd_dismiss">تجاهل</string>
+    <string name="cd_edit_tiles">تعديل الاختصارات</string>
+    <string name="cd_collapse">طي</string>
+    <string name="cd_expand">توسيع</string>
+    <!-- Game Optimization -->
+    <string name="game_optimization_title">تحسين الاطلاق</string>
+    <string name="game_memory_management_title">إدارة الذاكرة الذكية</string>
+    <string name="game_memory_management_summary">مسح تطبيقات الخلفية تلقائياً عند بدء تشغيل الألعاب</string>
+    <string name="game_cache_management_title">إدارة ذاكرة التخزين المؤقت</string>
+    <string name="game_cache_management_summary">تحسين ذاكرة التخزين المؤقت للعب لتسريع التحميل</string>
+    <string name="game_memory_boosted">تم تعزيز الذاكرة</string>
+    <!-- Game auto-detect -->
+    <string name="auto_game_detect_title">الكشف التلقائي للعبة</string>
+    <string name="auto_game_detect_summary">إضافة تطبيقات تم تحديدها كألعاب من قبل مطوري هذه التطبيقات تلقائياً</string>
+    <!-- Pulse bass haptics -->
+    <string name="pulse_bass_haptics_disabled_title">تعطيل قواعد النبض اللمس</string>
+    <string name="pulse_bass_haptics_disabled_summary">تعطيل قواعد النبض تلقائياً في حالة التمكين</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Grants GameSpace the readproc group (GID 3009) to bypass hidepid=2 and read all CPU stats -->
+<permissions>
+    <permission name="com.ireddragonicy.gamespace.permission.READ_PROCESSES">
+        <group gid="readproc" />
+    </permission>
+</permissions>

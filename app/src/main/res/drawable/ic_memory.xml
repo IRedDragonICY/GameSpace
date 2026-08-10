@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960"
+    android:tint="?attr/colorControlNormal">
+  <!-- Material Symbols: memory (rounded, filled) — RAM chip -->
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M360,720v-480h240v480H360ZM320,840v-80h-80q-33,0 -56.5,-23.5T160,680v-80h80v80h80v-80h80v80h120v-80h80v80h80v-80h80v80q0,33 -23.5,56.5T680,760h-80v80h-80v-80H440v80h-120ZM240,560h-80v-160h80v160ZM720,560h80v-160h-80v160ZM320,280v-80h-80q-33,0 -56.5,23.5T160,280v80h80v-80h80v80h80v-80h120v80h80v-80h80v80h80v-80q0,-33 -23.5,-56.5T680,200h-80v-80h-80v80H440v-80H320v80Z"/>
+</vector>

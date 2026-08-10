@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: crDroid Android Project
+     SPDX-FileCopyrightText: Chaldeaprjkt
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Game Space -->
+    <string name="settings_title">Không gian trò chơi</string>
+    <string name="app_selector_label">Chọn trò chơi của bạn</string>
+    <string name="in_game_preferences_title">Tùy chọn trong trò chơi</string>
+    <string name="game_list_title">Thư viện</string>
+    <string name="app_search_title">Tìm kiếm</string>
+    <string name="add_game">Add game</string>
+    <string name="launch_game">Launch game</string>
+    <!-- Quick start apps -->
+    <string name="quick_start_apps_title">Mở nhanh ứng dụng</string>
+    <string name="quick_start_apps_summary">Chọn ứng dụng để mở nhanh</string>
+    <!-- Auto brightness -->
+    <string name="auto_brightness_disabled_title">Tắt độ sáng tự động</string>
+    <string name="auto_brightness_disabled_summary">Giữ độ sáng ổn định khi ở trong trò chơi </string>
+    <!-- Three finger swipe -->
+    <string name="three_screenshot_disabled_summary">Tạm thời tắt cử chỉ vuốt ba ngón tay khi đang trong trò chơi</string>
+    <string name="three_screenshot_disabled_title">Tắt cử chỉ vuốt ba ngón tay</string>
+    <!-- Stay awake -->
+    <string name="stay_awake_title">Không khóa màn hình</string>
+    <string name="stay_awake_summary">Giữ màn hình bật khi đang trong trò chơi</string>
+    <!-- Lock gesture -->
+    <string name="lock_gesture_title">Khóa cử chỉ</string>
+    <string name="lock_gesture_summary">Tắt cử chỉ màn hình khi đang trong trò chơi </string>
+    <!-- Suppress full screen intent -->
+    <string name="suppress_fullscreen_intent_title">Chặn sự kiện toàn màn hình</string>
+    <string name="suppress_fullscreen_intent_summary">Ngăn các sự kiện toàn màn hình như cuộc gọi đến xuất hiện khi ở trong trò chơi</string>
+    <!-- Per app settings -->
+    <string name="per_app_title">Định cấu hình trò chơi</string>
+    <string name="per_app_mode_title">Chế độ ưu tiên</string>
+    <string name="per_app_angle_title">Sử dụng ANGLE (thử nghiệm)</string>
+    <string name="per_app_unregister">Xóa %1$s khỏi thư viện</string>
+    <!-- Disable ADB debugging -->
+    <string name="adb_disabled_title">Tắt gỡ lỗi USB</string>
+    <string name="adb_disabled_summary">Tạm thời vô hiệu hóa gỡ lỗi USB ADB khi ở trong trò chơi</string>
+    <!-- Ringer Mode -->
+    <string name="in_game_calls_title">Chế độ cuộc gọi</string>
+    <string name="in_game_calls_no_action">Không làm gì</string>
+    <string name="in_game_calls_auto_answer">Tự động trả lời</string>
+    <string name="in_game_calls_auto_reject">Tự động từ chối</string>
+    <string name="in_game_calls_received_number">Nhận cuộc gọi từ %1$s</string>
+    <string name="in_game_calls_rejected_number">Từ chối cuộc gọi từ %1$s</string>
+    <!-- Danmaku Notification Mode -->
+    <string name="danmaku_notification_mode_title">Chế độ thông báo hiện đại</string>
+    <string name="danmaku_notification_mode_summary">Hiển thị thông báo hiện đại hay còn gọi là nhận xét về dấu đầu dòng khi trò chơi đang hoạt động</string>
+    <!-- Gamespace opacity -->
+    <string name="gamespace_menu_opacity_title">Độ mờ bảng điều khiển nổi</string>
+    <!-- Bypass charging -->
+    <string name="bypass_charge_enabled_title">Bỏ qua sạc</string>
+    <string name="bypass_charge_enabled_summary">Bật chế độ ngắt sạc khi đang chơi</string>
+    <!-- Call overlay -->
+    <string name="call_overlay_enabled_title">Lớp phủ cuộc gọi</string>
+    <string name="call_overlay_enabled_summary">Hiển thị lớp phủ tối giản để trả lời/từ chối cuộc gọi</string>
+    <!-- Ringer Mode Options -->
+    <string name="ringer_mode_title">Chế độ chuông</string>
+    <string name="ringer_mode_silent">Im lặng</string>
+    <string name="ringer_mode_vibrate">Rung</string>
+    <string name="ringer_mode_normal">Bình thường</string>
+    <string name="ringer_mode_no_change">Không thay đổi</string>
+    <!-- Game Mode Labels -->
+    <string name="game_mode_unsupported">Không hỗ trợ</string>
+    <string name="game_mode_balanced">Cân bằng</string>
+    <string name="game_mode_performance">Hiệu suất cao</string>
+    <string name="game_mode_battery">Tiết kiệm pin</string>
+    <!-- Game Panel -->
+    <string name="save">Lưu</string>
+    <string name="panel_options">Tùy chọn bảng</string>
+    <string name="brightness_slider">Thanh trượt độ sáng</string>
+    <string name="fps_graph">Đồ thị FPS</string>
+    <string name="selected_tiles">Ô đã chọn</string>
+    <string name="available_tiles">Ô có sẵn</string>
+    <string name="drag_tiles_here">Kéo thả ở đây</string>
+    <string name="all_tiles_added">Đã thêm tất cả các ô</string>
+    <string name="fps_stats">tối thiểu %1$d | trung bình %2$d | tối đa %3$d</string>
+    <!-- Tile Labels -->
+    <string name="tile_danmaku">Kiểu hiện đại</string>
+    <string name="tile_stay_awake">Không khóa màn hình</string>
+    <string name="tile_wifi">Wifi</string>
+    <string name="tile_dnd">Không làm phiền</string>
+    <string name="tile_fps_info">Thông tin FPS</string>
+    <string name="tile_auto_rotate">Tự động xoay</string>
+    <string name="tile_boost_memory">Tăng tốc bộ nhớ</string>
+    <string name="tile_settings">Cài đặt</string>
+    <string name="tile_airplane_mode">Chế độ trên máy bay</string>
+    <string name="tile_bluetooth">Bluetooth</string>
+    <string name="tile_mobile_data">Dữ liệu di động</string>
+    <string name="tile_touch_boost">Tăng tốc cảm ứng</string>
+    <string name="tile_flashlight">Đèn pin</string>
+    <string name="tile_dark_mode">Chế độ tối</string>
+    <string name="tile_location">Vị trí</string>
+    <string name="tile_battery_saver">Trình tiết kiệm pin</string>
+    <string name="tile_hotspot">Điểm phát sóng</string>
+    <string name="tile_nfc">NFC</string>
+    <string name="tile_night_light">Ánh sáng ban đêm</string>
+    <string name="tile_aod">Màn hình luôn bật</string>
+    <string name="tile_data_saver">Trình tiết kiệm dữ liệu</string>
+    <string name="tile_color_inversion">Đảo ngược màu</string>
+    <string name="tile_color_correction">Chỉnh màu sắc</string>
+    <string name="tile_reduce_brightness">Giảm độ sáng</string>
+    <string name="tile_one_handed">Một tay</string>
+    <string name="tile_heads_up">Cửa sổ nổi</string>
+    <string name="tile_auto_sync">Tự động đồng bộ</string>
+    <string name="tile_camera_privacy">Máy ảnh</string>
+    <string name="tile_mic_privacy">Micrô</string>
+    <string name="tile_work_profile">Hồ sơ công việc</string>
+    <string name="tile_usb_tether">Chia sẻ kết nối qua USB</string>
+    <string name="tile_dream">Trình bảo vệ màn hình</string>
+    <string name="tile_reading_mode">Chế độ đọc sách</string>
+    <string name="tile_power_share">Chia sẻ năng lượng</string>
+    <string name="tile_caffeine">Chất gây nghiện</string>
+    <string name="tile_vpn">Mạng riêng ảo</string>
+    <string name="tile_cast">Truyền</string>
+    <string name="tile_profiles">Cấu hình</string>
+    <string name="tile_smart_pixels">Điểm ảnh thông minh</string>
+    <string name="tile_screen_record">Ghi lại màn hình</string>
+    <string name="tile_screenshot">Chụp ảnh màn hình</string>
+    <!-- Icon Idle Opacity -->
+    <string name="icon_idle_opacity_title">Độ mờ khi biểu tượng ở trạng thái chờ</string>
+    <!-- Auto DND -->
+    <string name="auto_dnd_title">Tự động bật không làm phiền</string>
+    <string name="auto_dnd_summary">Tự động bật không làm phiền khi đang trong trò chơi sẽ khôi phục lại khi chơi xong</string>
+    <!-- Controller Mapper -->
+    <string name="mapper_press_button">Nhấn một nút trên bộ điều khiển hoặc bàn phím\u2026</string>
+    <string name="mapper_add_point">Thêm điểm chạm</string>
+    <string name="mapper_delete_point">Xóa điểm chạm</string>
+    <string name="mapper_map_controls">Điều khiển bản đồ</string>
+    <!-- Content Descriptions (Accessibility) -->
+    <string name="cd_reject">Từ chối</string>
+    <string name="cd_accept">Chấp nhận</string>
+    <string name="cd_caller_photo">Ảnh người gọi</string>
+    <string name="cd_dismiss">Bỏ qua</string>
+    <string name="cd_edit_tiles">Chỉnh sửa các mục</string>
+    <string name="cd_collapse">Thu gọn</string>
+    <string name="cd_expand">Mở rộng</string>
+    <!-- Game Optimization -->
+    <string name="game_optimization_title">Tối ưu khởi chạy</string>
+    <string name="game_memory_management_title">Quản lý bộ nhớ thông minh</string>
+    <string name="game_memory_management_summary">Tự động dọn sạch ứng dụng nền khi khởi chạy trò chơi</string>
+    <string name="game_cache_management_title">Quản lý bộ nhớ đệm</string>
+    <string name="game_cache_management_summary">Tối ưu bộ nhớ đệm trò chơi để rút ngắn thời gian tải</string>
+    <string name="game_memory_boosted">Bộ nhớ được tăng cường</string>
+    <!-- Game auto-detect -->
+    <string name="auto_game_detect_title">Tự động phát hiện trò chơi</string>
+    <string name="auto_game_detect_summary">Tự động thêm các ứng dụng được chỉ định trò chơi</string>
+    <!-- Pulse bass haptics -->
+    <string name="pulse_bass_haptics_disabled_title">Disable pulse bass haptics</string>
+    <string name="pulse_bass_haptics_disabled_summary">Automatically disable pulse bass haptics if enabled</string>
+</resources>

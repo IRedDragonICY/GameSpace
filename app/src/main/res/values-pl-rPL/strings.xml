@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: crDroid Android Project
+     SPDX-FileCopyrightText: Chaldeaprjkt
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Game Space -->
+    <string name="settings_title">Przestrzeń gier</string>
+    <string name="app_selector_label">Wybierz swoją grę</string>
+    <string name="in_game_preferences_title">Opcje w grze</string>
+    <string name="game_list_title">Biblioteka</string>
+    <string name="app_search_title">Szukaj</string>
+    <string name="add_game">Add game</string>
+    <string name="launch_game">Launch game</string>
+    <!-- Quick start apps -->
+    <string name="quick_start_apps_title">Aplikacje szybkiego startu</string>
+    <string name="quick_start_apps_summary">Wybierz aplikacje do szybkiego uruchamiania</string>
+    <!-- Auto brightness -->
+    <string name="auto_brightness_disabled_title">Wyłącz automatyczną jasność</string>
+    <string name="auto_brightness_disabled_summary">Utrzymuj jasność na stałym poziomie podczas gry</string>
+    <!-- Three finger swipe -->
+    <string name="three_screenshot_disabled_summary">Tymczasowo wyłącz gest przesunięcia trzema palcami w grze</string>
+    <string name="three_screenshot_disabled_title">Wyłącz gest przesuwania trzema palcami</string>
+    <!-- Stay awake -->
+    <string name="stay_awake_title">Pozostaw ekran włączony</string>
+    <string name="stay_awake_summary">Utrzymuj ekran aktywny w trakcie gry</string>
+    <!-- Lock gesture -->
+    <string name="lock_gesture_title">Gest blokady</string>
+    <string name="lock_gesture_summary">Wyłączaj gesty ekranu w grze</string>
+    <!-- Suppress full screen intent -->
+    <string name="suppress_fullscreen_intent_title">Zablokuj wydarzenie na pełnym ekranie</string>
+    <string name="suppress_fullscreen_intent_summary">Zapobiegaj pojawianiu się wydarzeń na pełnym ekranie, takich jak połączenia przychodzące podczas grania</string>
+    <!-- Per app settings -->
+    <string name="per_app_title">Skonfiguruj grę</string>
+    <string name="per_app_mode_title">Preferowany tryb</string>
+    <string name="per_app_angle_title">Sterownik grafiki</string>
+    <string name="per_app_unregister">Usuń %1$s z biblioteki</string>
+    <!-- Disable ADB debugging -->
+    <string name="adb_disabled_title">Wyłącz debugowanie USB</string>
+    <string name="adb_disabled_summary">Tymczasowe wyłączenie debugowania USB ADB podczas gry</string>
+    <!-- Ringer Mode -->
+    <string name="in_game_calls_title">Tryb połączeń</string>
+    <string name="in_game_calls_no_action">Brak akcji</string>
+    <string name="in_game_calls_auto_answer">Automatyczne odbieranie</string>
+    <string name="in_game_calls_auto_reject">Automatyczne odrzucanie</string>
+    <string name="in_game_calls_received_number">Odebrano połączenie od %1$s</string>
+    <string name="in_game_calls_rejected_number">Odrzucono połączenie od %1$s</string>
+    <!-- Danmaku Notification Mode -->
+    <string name="danmaku_notification_mode_title">Tryb powiadomień Danmaku</string>
+    <string name="danmaku_notification_mode_summary">Wyświetlaj powiadomienie jako Danmaku w postaci wypunktowanych komentarzy, gdy gra jest aktywna</string>
+    <!-- Gamespace opacity -->
+    <string name="gamespace_menu_opacity_title">Poziom przezroczystości nakładki menu</string>
+    <!-- Bypass charging -->
+    <string name="bypass_charge_enabled_title">Pomijaj ładowanie</string>
+    <string name="bypass_charge_enabled_summary">Włącz pomijanie ładowania podczas grania w gry</string>
+    <!-- Call overlay -->
+    <string name="call_overlay_enabled_title">Nakładka połączenia</string>
+    <string name="call_overlay_enabled_summary">Pokazuj minimalną nakładkę podczas odbierania/odrzucania połączeń telefonicznych</string>
+    <!-- Ringer Mode Options -->
+    <string name="ringer_mode_title">Tryb dzwonka</string>
+    <string name="ringer_mode_silent">Tryb cichy</string>
+    <string name="ringer_mode_vibrate">Wibracje</string>
+    <string name="ringer_mode_normal">Normalny</string>
+    <string name="ringer_mode_no_change">Nie zmieniaj</string>
+    <!-- Game Mode Labels -->
+    <string name="game_mode_unsupported">Nieobsługiwane</string>
+    <string name="game_mode_balanced">Zbalansowany</string>
+    <string name="game_mode_performance">Wydajność</string>
+    <string name="game_mode_battery">Bateria</string>
+    <!-- Game Panel -->
+    <string name="save">Zapisz</string>
+    <string name="panel_options">Panel opcji</string>
+    <string name="brightness_slider">Suwak jasności</string>
+    <string name="fps_graph">Wykres FPS</string>
+    <string name="selected_tiles">Wybrane kafelki</string>
+    <string name="available_tiles">Dostępne kafelki</string>
+    <string name="drag_tiles_here">Przeciągnij tutaj kafelki</string>
+    <string name="all_tiles_added">Dodano wszystkie kafelki</string>
+    <string name="fps_stats">min. %1$d | śr. %2$d | maks. %3$d</string>
+    <!-- Tile Labels -->
+    <string name="tile_danmaku">Danmaku</string>
+    <string name="tile_stay_awake">Pozostaw ekran włączony</string>
+    <string name="tile_wifi">Wi-Fi</string>
+    <string name="tile_dnd">Tryb \"nie przeszkadzać\"</string>
+    <string name="tile_fps_info">Informacje o FPS</string>
+    <string name="tile_auto_rotate">Automatyczne obracanie</string>
+    <string name="tile_boost_memory">Poprawa pamięci</string>
+    <string name="tile_settings">Ustawienia</string>
+    <string name="tile_airplane_mode">Tryb samolotowy</string>
+    <string name="tile_bluetooth">Bluetooth</string>
+    <string name="tile_mobile_data">Dane komórkowe</string>
+    <string name="tile_touch_boost">Polepszaj dotyk</string>
+    <string name="tile_flashlight">Latarka</string>
+    <string name="tile_dark_mode">Tryb Ciemny</string>
+    <string name="tile_location">Lokalizacja</string>
+    <string name="tile_battery_saver">Oszczędzanie baterii</string>
+    <string name="tile_hotspot">Punkt dostępu</string>
+    <string name="tile_nfc">NFC</string>
+    <string name="tile_night_light">Podświetlanie nocne</string>
+    <string name="tile_aod">Ekran zawsze włączony</string>
+    <string name="tile_data_saver">Oszczędzanie danych</string>
+    <string name="tile_color_inversion">Odwrócenie kolorów</string>
+    <string name="tile_color_correction">Korekcja kolorów</string>
+    <string name="tile_reduce_brightness">Zmniejszaj jasność</string>
+    <string name="tile_one_handed">Jedną ręką</string>
+    <string name="tile_heads_up">Wyskakujące powiadomienia</string>
+    <string name="tile_auto_sync">Autosynchronizacja</string>
+    <string name="tile_camera_privacy">Aparat</string>
+    <string name="tile_mic_privacy">Mikrofon</string>
+    <string name="tile_work_profile">Profil służbowy</string>
+    <string name="tile_usb_tether">Tethering USB</string>
+    <string name="tile_dream">Wygaszacz ekranu</string>
+    <string name="tile_reading_mode">Tryb czytania</string>
+    <string name="tile_power_share">Udostępnianie energii</string>
+    <string name="tile_caffeine">Kofeina</string>
+    <string name="tile_vpn">VPN</string>
+    <string name="tile_cast">Prześlij ekran</string>
+    <string name="tile_profiles">Profile</string>
+    <string name="tile_smart_pixels">Inteligentne piksele</string>
+    <string name="tile_screen_record">Nagrywanie ekranu</string>
+    <string name="tile_screenshot">Zrzut ekranu</string>
+    <!-- Icon Idle Opacity -->
+    <string name="icon_idle_opacity_title">Przezroczystość ikon</string>
+    <!-- Auto DND -->
+    <string name="auto_dnd_title">Automatyczny tryb \"nie przeszkadzać\"</string>
+    <string name="auto_dnd_summary">Automatycznie włączaj tryb \"nie przeszkadzać\" podczas gry i przywracaj po zakończeniu</string>
+    <!-- Controller Mapper -->
+    <string name="mapper_press_button">Naciśnij przycisk na kontrolerze lub klawiaturze\u2026</string>
+    <string name="mapper_add_point">Dodaj punkt dotknięcia</string>
+    <string name="mapper_delete_point">Usuń punkt dotknięcia</string>
+    <string name="mapper_map_controls">Sterowanie mapą</string>
+    <!-- Content Descriptions (Accessibility) -->
+    <string name="cd_reject">Odrzuć</string>
+    <string name="cd_accept">Zatwierdź</string>
+    <string name="cd_caller_photo">Zdjęcie osoby dzwoniącej</string>
+    <string name="cd_dismiss">Odrzuć</string>
+    <string name="cd_edit_tiles">Edytuj kafelki</string>
+    <string name="cd_collapse">Zwiń</string>
+    <string name="cd_expand">Rozwiń</string>
+    <!-- Game Optimization -->
+    <string name="game_optimization_title">Uruchom optymalizację</string>
+    <string name="game_memory_management_title">Inteligentne zarządzanie pamięcią</string>
+    <string name="game_memory_management_summary">Automatycznie zamykaj aplikacje działające w tle podczas uruchamiania gier</string>
+    <string name="game_cache_management_title">Zarządzanie pamięcią podręczną</string>
+    <string name="game_cache_management_summary">Optymalizuj pamięć podręczną gry dla szybszego ładowania</string>
+    <string name="game_memory_boosted">Polepszono pamięć</string>
+    <!-- Game auto-detect -->
+    <string name="auto_game_detect_title">Automatyczne wykrywanie gier</string>
+    <string name="auto_game_detect_summary">Automatycznie dodawaj aplikacje oznaczone jako gry przez programistę</string>
+    <!-- Pulse bass haptics -->
+    <string name="pulse_bass_haptics_disabled_title">Disable pulse bass haptics</string>
+    <string name="pulse_bass_haptics_disabled_summary">Automatically disable pulse bass haptics if enabled</string>
+</resources>

@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     SPDX-FileCopyrightText: crDroid Android Project
+     SPDX-FileCopyrightText: Chaldeaprjkt
+     SPDX-License-Identifier: Apache-2.0
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- Game Space -->
+    <string name="settings_title">Game Space</string>
+    <string name="app_selector_label">Pick your game</string>
+    <string name="in_game_preferences_title">In-game options</string>
+    <string name="game_list_title">Library</string>
+    <string name="app_search_title">Search</string>
+    <string name="add_game">Add game</string>
+    <string name="launch_game">Launch game</string>
+
+    <!-- Quick start apps -->
+    <string name="quick_start_apps_title">Quick Start Apps</string>
+    <string name="quick_start_apps_summary">Select apps to launch quickly</string>
+
+    <!-- Auto brightness -->
+    <string name="auto_brightness_disabled_title">Disable auto-brightness</string>
+    <string name="auto_brightness_disabled_summary">Keep brightness settled while in-game</string>
+
+    <!-- Three finger swipe -->
+    <string name="three_screenshot_disabled_summary">Temporary disable three-fingers-swipe gesture while in-game</string>
+    <string name="three_screenshot_disabled_title">Disable three fingers swipe gesture</string>
+
+    <!-- Stay awake -->
+    <string name="stay_awake_title">Stay awake</string>
+    <string name="stay_awake_summary">Keep screen awake while in-game</string>
+
+    <!-- Lock gesture -->
+    <string name="lock_gesture_title">Lock gesture</string>
+    <string name="lock_gesture_summary">Disable screen gestures while in-game</string>
+
+    <!-- Suppress full screen intent -->
+    <string name="suppress_fullscreen_intent_title">Block fullscreen event</string>
+    <string name="suppress_fullscreen_intent_summary">Prevent fullscreen events like incoming calls from appearing while in-game</string>
+
+    <!-- Per app settings -->
+    <string name="per_app_title">Configure Game</string>
+    <string name="per_app_mode_title">Preferred Mode</string>
+    <string name="per_app_angle_title">Graphics driver</string>
+    <string name="per_app_unregister">Remove %1$s from library</string>
+    <string name="per_app_thermal_title">Thermal Profile</string>
+    <string name="per_app_thermal_summary">Control CPU/GPU thermal behavior for this game</string>
+    <string name="per_app_gpu_composition_title">GPU screen composition</string>
+    <string name="per_app_gpu_composition_summary">Force GPU rendering for this game (reduces HW overlay latency)</string>
+    <string name="per_app_resolution_title">Game Resolution</string>
+    <string name="per_app_resolution_summary">Reduce rendering resolution to improve performance</string>
+    <string name="per_app_afme_title">Frame Generation (AFME)</string>
+    <string name="per_app_afme_summary">GPU-accelerated frame extrapolation using Adreno hardware</string>
+    <string name="per_app_vrs_title">Variable Rate Shading</string>
+    <string name="per_app_vrs_summary">Reduce GPU shading on screen edges for better performance</string>
+    <string name="per_app_color_enhance_title">Game Color Enhance</string>
+    <string name="per_app_color_enhance_summary">Boost saturation, contrast and HDR quality for gaming</string>
+
+    <!-- Disable ADB debugging -->
+    <string name="adb_disabled_title">Disable USB debugging</string>
+    <string name="adb_disabled_summary">Temporary disable USB ADB debugging while in-game</string>
+
+    <!-- Ringer Mode -->
+    <string name="in_game_calls_title">In-game call</string>
+    <string name="in_game_calls_no_action">No action</string>
+    <string name="in_game_calls_auto_answer">Auto answer</string>
+    <string name="in_game_calls_auto_reject">Auto reject</string>
+    <string name="in_game_calls_received_number">Received call from %1$s</string>
+    <string name="in_game_calls_rejected_number">Rejected call from %1$s</string>
+
+    <!-- Danmaku Notification Mode -->
+    <string name="danmaku_notification_mode_title">Danmaku notification mode</string>
+    <string name="danmaku_notification_mode_summary">Show notification as danmaku aka bullet comments while game is active</string>
+
+    <!-- Gamespace opacity -->
+    <string name="gamespace_menu_opacity_title">Overlay menu opacity level</string>
+
+    <!-- Bypass charging -->
+    <string name="bypass_charge_enabled_title">Bypass charging</string>
+    <string name="bypass_charge_enabled_summary">Enable bypass charging while playing games</string>
+
+    <!-- Call overlay -->
+    <string name="call_overlay_enabled_title">Call overlay</string>
+    <string name="call_overlay_enabled_summary">Show minimal call overlay to answer/reject calls</string>
+
+    <!-- Ringer Mode Options -->
+    <string name="ringer_mode_title">In-game ringer mode</string>
+    <string name="ringer_mode_silent">Silent</string>
+    <string name="ringer_mode_vibrate">Vibrate</string>
+    <string name="ringer_mode_normal">Normal</string>
+    <string name="ringer_mode_no_change">Do not change</string>
+
+    <!-- Game Mode Labels -->
+    <string name="game_mode_unsupported">Unsupported</string>
+    <string name="game_mode_balanced">Balanced</string>
+    <string name="game_mode_performance">Performance</string>
+    <string name="game_mode_battery">Battery</string>
+
+    <!-- Game Panel -->
+    <string name="save">Save</string>
+    <string name="panel_options">Panel Options</string>
+    <string name="brightness_slider">Brightness Slider</string>
+    <string name="fps_graph">FPS Graph</string>
+    <string name="selected_tiles">Selected Tiles</string>
+    <string name="available_tiles">Available Tiles</string>
+    <string name="drag_tiles_here">Drag tiles here</string>
+    <string name="all_tiles_added">All tiles added</string>
+    <string name="quick_toggles_section">Quick Toggles</string>
+    <string name="tool_grid_section">Tool Grid</string>
+    <string name="add_to_quick_toggles">Add to Quick Toggles</string>
+    <string name="add_to_tool_grid">Add to Tool Grid</string>
+    <string name="move_to_quick_toggles">Move to Quick Toggles</string>
+    <string name="move_to_tool_grid">Move to Tool Grid</string>
+    <string name="no_quick_toggles">Tap + from available tiles</string>
+    <string name="no_tool_tiles">Tap + from available tiles</string>
+    <string name="fps_stats">min %1$d | avg %2$d | max %3$d</string>
+    <string name="fps_stats_game">game: min %1$d | avg %2$d | max %3$d</string>
+    <string name="fps_stats_afme">Game %1$d | Gen %2$d | Total %3$d</string>
+
+    <!-- AFME multiplier options -->
+    <string name="afme_off">Off</string>
+    <string name="afme_2x">2× Frame Generation</string>
+    <string name="afme_3x">3× Frame Generation</string>
+    <string name="afme_4x">4× Frame Generation</string>
+
+    <!-- AFME Factor control -->
+    <string name="per_app_afme_factor_title">Extrapolation Strength</string>
+    <string name="per_app_afme_factor_summary">Controls how far the GPU predicts each frame</string>
+
+    <!-- Graphics Enhancement (SGSR / MobFGSR) -->
+    <string name="per_app_sgsr_title">Graphics Enhancement</string>
+    <string name="per_app_sgsr_summary">Sharpening, super resolution, and motion interpolation</string>
+    <string name="sgsr_off">Off</string>
+    <string name="sgsr_1">SGSR1 — Adaptive Sharpening</string>
+    <string name="sgsr_2">SGSR2 — Temporal Upscale (Quality)</string>
+    <string name="sgsr_3">MobFGSR — Motion Interpolation (Best)</string>
+
+    <!-- Smooth Motion -->
+    <string name="per_app_smooth_motion_title">Smooth Motion</string>
+    <string name="per_app_smooth_motion_summary">Enable HWC smooth motion interpolation and frame pacing</string>
+
+    <!-- Sidebar app management -->
+    <string name="sidebar_add_app">Add app</string>
+    <string name="sidebar_remove_app">Remove</string>
+    <string name="sidebar_search_apps">Search apps…</string>
+    <string name="sidebar_edit">Edit sidebar</string>
+    <string name="sidebar_done">Done</string>
+    <string name="sidebar_empty">Tap + to add apps</string>
+    <string name="back">Back</string>
+
+    <!-- Tile Labels -->
+    <string name="tile_danmaku">Danmaku</string>
+    <string name="tile_stay_awake">Stay awake</string>
+    <string name="tile_wifi">Wi-Fi</string>
+    <string name="tile_dnd">DND</string>
+    <string name="tile_fps_info">FPS Info</string>
+    <string name="tile_auto_rotate">Auto Rotate</string>
+    <string name="tile_boost_memory">Boost Memory</string>
+    <string name="tile_settings">Settings</string>
+    <string name="tile_airplane_mode">Airplane Mode</string>
+    <string name="tile_bluetooth">Bluetooth</string>
+    <string name="tile_mobile_data">Mobile Data</string>
+    <string name="tile_touch_boost">Touch Boost</string>
+    <string name="tile_flashlight">Flashlight</string>
+    <string name="tile_dark_mode">Dark Mode</string>
+    <string name="tile_location">Location</string>
+    <string name="tile_battery_saver">Battery Saver</string>
+    <string name="tile_hotspot">Hotspot</string>
+    <string name="tile_nfc">NFC</string>
+    <string name="tile_night_light">Night Light</string>
+    <string name="tile_aod">Always On Display</string>
+    <string name="tile_data_saver">Data Saver</string>
+    <string name="tile_color_inversion">Color Inversion</string>
+    <string name="tile_color_correction">Color Correction</string>
+    <string name="tile_reduce_brightness">Reduce Brightness</string>
+    <string name="tile_one_handed">One Handed</string>
+    <string name="tile_heads_up">Heads Up</string>
+    <string name="tile_auto_sync">Auto Sync</string>
+    <string name="tile_camera_privacy">Camera</string>
+    <string name="tile_mic_privacy">Microphone</string>
+    <string name="tile_work_profile">Work Profile</string>
+    <string name="tile_usb_tether">USB Tethering</string>
+    <string name="tile_dream">Screen Saver</string>
+    <string name="tile_reading_mode">Reading Mode</string>
+    <string name="tile_power_share">Power Share</string>
+    <string name="tile_caffeine">Caffeine</string>
+    <string name="tile_vpn">VPN</string>
+    <string name="tile_cast">Cast</string>
+    <string name="tile_profiles">Profiles</string>
+    <string name="tile_smart_pixels">Smart Pixels</string>
+    <string name="tile_screen_record">Screen Record</string>
+    <string name="tile_game_record">Rec</string>
+    <string name="tile_screenshot">Screenshot</string>
+    <string name="tile_lock_gesture">Lock Gesture</string>
+    <string name="tile_afme">AFME</string>
+    <string name="tile_map_controls">Map Controls</string>
+
+    <!-- Touch Feature tiles (Xiaomi Touch HAL) -->
+    <string name="tile_htsr">HTSR</string>
+    <string name="tile_super_touch">Super Touch</string>
+    <string name="tile_first_frame_boost">Touch Boost</string>
+    <string name="tile_hot_area">Hot Area</string>
+    <string name="tile_game_vibration">Game Vibration</string>
+
+    <!-- Icon Idle Opacity -->
+    <string name="icon_idle_opacity_title">Icon idle opacity</string>
+
+    <!-- Auto DND -->
+    <string name="auto_dnd_title">Auto Do Not Disturb</string>
+    <string name="auto_dnd_summary">Automatically enable DND while in-game and restore when done</string>
+
+    <!-- Controller Mapper -->
+    <string name="mapper_press_button">Press a button on your controller or keyboard\u2026</string>
+    <string name="mapper_add_point">Add tap point</string>
+    <string name="mapper_delete_point">Delete tap point</string>
+    <string name="mapper_map_controls">Map controls</string>
+
+    <!-- Content Descriptions (Accessibility) -->
+    <string name="cd_reject">Reject</string>
+    <string name="cd_accept">Accept</string>
+    <string name="cd_caller_photo">Caller photo</string>
+    <string name="cd_dismiss">Dismiss</string>
+    <string name="cd_edit_tiles">Edit Tiles</string>
+    <string name="cd_collapse">Collapse</string>
+    <string name="cd_expand">Expand</string>
+
+    <!-- Game Optimization -->
+    <string name="game_optimization_title">Launch Optimization</string>
+    <string name="game_memory_management_title">Smart Memory Management</string>
+    <string name="game_memory_management_summary">Automatically clear background apps when launching games</string>
+    <string name="game_cache_management_title">Cache Management</string>
+    <string name="game_cache_management_summary">Optimize game cache for faster loading times</string>
+    <string name="game_memory_boosted">Memory boosted</string>
+
+    <!-- Game auto-detect -->
+    <string name="auto_game_detect_title">Auto game detection</string>
+    <string name="auto_game_detect_summary">Automatically add apps marked as games by their developer</string>
+
+    <!-- Pulse bass haptics -->
+    <string name="pulse_bass_haptics_disabled_title">Disable pulse bass haptics</string>
+    <string name="pulse_bass_haptics_disabled_summary">Automatically disable pulse bass haptics if enabled</string>
+
+    <!-- Panel Color Theme -->
+    <string name="panel_color_title">Panel accent color</string>
+    <string name="panel_color_summary">Change the accent color of the game overlay panel</string>
+    <string name="panel_color_material_you">Material You (wallpaper)</string>
+    <string name="panel_color_cyan">Cyan (Classic)</string>
+    <string name="panel_color_blue">Electric Blue</string>
+    <string name="panel_color_green">Emerald Green</string>
+    <string name="panel_color_orange">Sunset Orange</string>
+    <string name="panel_color_purple">Royal Purple</string>
+    <string name="panel_color_red">Cherry Red</string>
+    <string name="panel_color_yellow">Golden Yellow</string>
+    <string name="panel_color_white">Arctic White</string>
+
+    <!-- Touch Tuning -->
+    <string name="touch_tuning_category_title">Touch tuning (game mode)</string>
+    <string name="super_report_rate_title">Super report rate</string>
+    <string name="super_report_rate_summary">480 Hz super-resolution reporting (game mode is 240 Hz)</string>
+    <string name="expert_mode_title">Expert mode</string>
+    <string name="expert_mode_summary">Use a built-in tuning preset instead of the manual values</string>
+    <string name="expert_preset_title">Expert preset</string>
+    <string name="tune_touch_up_threshold_title">Touch-up threshold</string>
+    <string name="tune_jitter_tolerance_title">Jitter tolerance</string>
+    <string name="tune_aim_sensitivity_title">Aim sensitivity</string>
+    <string name="tune_tap_stability_title">Tap stability</string>
+    <string name="tune_edge_filter_title">Edge filter</string>
+    
+    <string name="touch_test_title">Touch sample rate test</string>
+    <string name="touch_test_summary">Test real-time touch sampling rate</string>
+    <string name="touch_test_game_mode">Game mode</string>
+    <string name="touch_test_super_report">Super report</string>
+
+    <!-- In-panel Tuner (tabbed page) -->
+    <string name="tuner_title">TUNER</string>
+    <string name="tuner_tab_perf">PERF</string>
+    <string name="tuner_tab_touch">TOUCH</string>
+    <string name="tuner_tab_frame">FRAME</string>
+    <string name="tuner_tab_gfx">GFX</string>
+    <string name="tuner_tab_filter">FILTER</string>
+    <string name="tuner_tab_sound">SOUND</string>
+    <string name="tuner_gfx_section_gpu">GPU</string>
+    <string name="tuner_gfx_af">Anisotropic filtering</string>
+    <string name="tuner_gfx_af_hint">Sharpens textures viewed at an angle. Forced by the AFME layer at sampler creation, so it applies to textures the game loads from now on.</string>
+    <string name="tuner_gfx_msaa">Force 4× MSAA</string>
+    <string name="tuner_gfx_msaa_hint">Applies when the game next creates its render context — restart the game.</string>
+    <string name="tuner_gfx_gpu_composition">Force GPU composition</string>
+    <string name="tuner_gfx_gpu_composition_hint">Bypasses the display overlay hardware. Applies immediately, but affects the whole screen, not just this game.</string>
+    <string name="tuner_no_active_game">No active game — start a session to edit per-app settings</string>
+    <string name="tuner_choice_off">Off</string>
+    <string name="tuner_choice_auto">Auto</string>
+
+    <string name="tuner_touch_tester_hint">Drag inside the pad above to measure live touch sampling rate</string>
+    <string name="tuner_touch_section_general">General</string>
+    <string name="tuner_touch_htsr">High touch sampling rate</string>
+    <string name="tuner_touch_super_touch">Super touch</string>
+    <string name="tuner_touch_super_touch_level">Super touch level</string>
+    <string name="tuner_touch_first_frame_boost">First frame boost</string>
+    <string name="tuner_touch_game_vibration">Game vibration</string>
+    <string name="tuner_touch_hot_area">Hot area</string>
+    <string name="tuner_touch_section_per_app">Per-game tuning</string>
+
+    <string name="tuner_frame_section_afme">AFME frame generation</string>
+    <string name="tuner_frame_afme_multiplier">Frame generation</string>
+    <string name="tuner_frame_afme_tier">Multiplier</string>
+    <string name="tuner_frame_afme_factor">Extrapolation factor</string>
+    <string name="tuner_frame_afme_method">Generation method</string>
+    <string name="tuner_frame_afme_method_extrapolate">Extrapolate</string>
+    <string name="tuner_frame_afme_method_motion">Motion</string>
+    <string name="tuner_frame_section_pacing">Frame pacing</string>
+    <string name="tuner_frame_smooth_motion">Smooth motion</string>
+    <string name="tuner_frame_afme_vrs_fg">Efficient generation (VRS)</string>
+    <string name="tuner_frame_afme_vrs_fg_summary">Run the frame-generation shader passes at 2x2 variable shading rate. Cuts GPU cost ~4x with no visible quality loss.</string>
+    <string name="tuner_frame_afme_hud_mask">HUD ghost protection</string>
+    <string name="tuner_frame_afme_hud_mask_summary">Detect screen-static UI (minimap, HP bars, buttons) and pin those pixels to the real frame so interpolated frames don\'t smear them.</string>
+
+    <string name="tuner_gfx_section_upscale">Graphics enhancement</string>
+    <string name="tuner_gfx_enhancement">Upscaler</string>
+    <string name="tuner_gfx_sgsr1">SGSR1</string>
+    <string name="tuner_gfx_sgsr2">SGSR2</string>
+    <string name="tuner_gfx_mobfgsr">MobFGSR</string>
+    <string name="tuner_gfx_section_rendering">Rendering</string>
+    <string name="tuner_gfx_vrs">Variable rate shading</string>
+    <string name="tuner_gfx_resolution">Resolution scale</string>
+    <string name="tuner_gfx_section_color">Color</string>
+    <string name="tuner_gfx_color_enhance">Color enhance</string>
+
+    <!-- Video toolbox — the sidebar panel shown over video players -->
+    <string name="video_toolbox_title">Video toolbox</string>
+    <string name="video_toolbox_settings">App settings</string>
+    <string name="video_toolbox_no_app">No active app</string>
+    <string name="video_toolbox_record">Record</string>
+    <string name="video_toolbox_screenshot">Screenshot</string>
+    <string name="video_toolbox_cast">Cast</string>
+    <string name="video_toolbox_section_picture">PICTURE &amp; SOUND</string>
+    <string name="video_toolbox_frame_gen">Frame gen</string>
+    <string name="video_toolbox_upscale">Upscale</string>
+    <string name="video_toolbox_style">Style</string>
+    <string name="video_toolbox_colour">Picture</string>
+    <string name="video_toolbox_dolby">Dolby Atmos</string>
+    <string name="video_toolbox_sound">Sound</string>
+    <string name="video_toolbox_frc_target">Target frame rate</string>
+    <string name="video_toolbox_frc_level">Smoothness</string>
+    <string name="video_toolbox_frc_level_low">Low</string>
+    <string name="video_toolbox_frc_level_medium">Medium</string>
+    <string name="video_toolbox_frc_level_high">High</string>
+    <string name="video_toolbox_frc_hint">Interpolates video in the display hardware. Turns Upscale off — they cannot run together. Applies from the next playback.</string>
+    <string name="video_toolbox_style_enable">Enhance picture</string>
+    <string name="video_toolbox_style_preset">Preset</string>
+    <string name="video_toolbox_style_off">Off</string>
+    <string name="video_toolbox_style_vivid">Vivid</string>
+    <string name="video_toolbox_style_crisp">Crisp</string>
+    <string name="video_toolbox_style_cinema">Cinema</string>
+    <string name="video_toolbox_grade_cade">Detail</string>
+    <string name="video_toolbox_grade_ltm">Tone mapping</string>
+    <string name="video_toolbox_grade_ace">Contrast</string>
+    <string name="video_toolbox_grade_sat">Saturation</string>
+    <string name="video_toolbox_grade_shadow">Shadow lift</string>
+    <string name="video_toolbox_dolby_profile">Dolby profile</string>
+    <string name="video_toolbox_dolby_dynamic">Dynamic</string>
+    <string name="video_toolbox_dolby_movie">Movie</string>
+    <string name="video_toolbox_dolby_music">Music</string>
+    <string name="video_toolbox_dolby_game">Game</string>
+
+    <!-- Charging Profiles -->
+    <string name="charging_profiles_title">Charging Profiles</string>
+    <string name="charging_profile_create">New charging profile</string>
+    <string name="charging_profile_edit">Edit charging profile</string>
+    <string name="charging_tier_trigger">Trigger temperature</string>
+    <string name="charging_tier_clear">Clear temperature</string>
+    <string name="charging_tier_target">PID target</string>
+    <string name="charging_tier_max">Max current</string>
+    <string name="charging_tier_min">Min current</string>
+    <string name="charging_emergency_suspend">Suspend charging at</string>
+    <string name="charging_emergency_resume">Resume below</string>
+ 
+    <!-- Sidebar Studio -->
+    <string name="sidebar_appearance_title">Sidebar Appearance</string>
+    <string name="sidebar_studio_title">Sidebar Studio</string>
+    <string name="sidebar_studio_summary">Customize handle, edge, label &amp; layout</string>
+    <string name="studio_section_handle">HANDLE</string>
+    <string name="studio_section_edge">EDGE</string>
+    <string name="studio_section_labels">LABELS</string>
+    <string name="studio_handle_preset">Preset</string>
+    <string name="studio_handle_width">Width</string>
+    <string name="studio_handle_height">Height</string>
+    <string name="studio_handle_idle_alpha">Idle opacity</string>
+    <string name="studio_handle_offset_y">Vertical offset</string>
+    <string name="studio_handle_fill">Fill</string>
+    <string name="studio_handle_outline">Outline</string>
+    <string name="studio_handle_glyph">Chevron glyph</string>
+    <string name="studio_handle_auto_hide">Auto-hide on idle</string>
+    <string name="studio_edge_preset">Preset</string>
+    <string name="studio_edge_intensity">Intensity</string>
+    <string name="studio_label_mode">Mode</string>
+    <string name="studio_label_size">Size</string>
+ </resources>

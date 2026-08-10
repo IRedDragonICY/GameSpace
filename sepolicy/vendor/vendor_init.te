@@ -1,0 +1,13 @@
+# AFME/GameSpace: allow vendor_init to forward persist.sys.game.enhance.*
+# → vendor.display.game.* and persist.sys.afme.smooth_motion
+# → vendor.display.use_smooth_motion via init.rc property triggers
+set_prop(vendor_init, vendor_display_prop)
+set_prop(vendor_init, vendor_mpctl_prop)
+
+# GameSpace dynamic properties: allow vendor_init to read/set persist.sys.gamespace.*
+get_prop(vendor_init, gamespace_prop)
+set_prop(vendor_init, gamespace_prop)
+
+# WALT scheduler boost: allow vendor_init to write /proc/sys/walt/sched_lib_name
+allow vendor_init proc_walt:file rw_file_perms;
+

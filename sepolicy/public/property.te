@@ -1,0 +1,13 @@
+# Copyright (C) 2026 IRedDragonICY
+# SPDX-License-Identifier: Apache-2.0
+
+# MiThermal IPC: GameSpace system_app (SET) <-> mi_thermal_engine vendor daemon (GET)
+system_public_prop(mithermal_prop)
+
+# Video toolbox: GameSpace system_app (SET) -> video player process (GET).
+system_public_prop(videobox_prop)
+
+# GameSpace dynamic properties: GameSpace system_app (SET) <-> vendor_init (GET/SET)
+# for the WALT sched_lib_name watcher. Public so vendor policy can reference it.
+system_public_prop(gamespace_prop)
+

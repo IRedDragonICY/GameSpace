@@ -1,0 +1,49 @@
+# Copyright (C) 2026 IRedDragonICY
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# GameSpace (com.ireddragonicy.gamespace) — android.uid.system → system_app domain.
+#
+# GameSpace now owns all mithermald control that previously lived in
+# system_server (MiThermalService):
+#   - thermal profile switching  (sysfs_thermal: sconfig/boost/temp_state)
+#   - property IPC with the mi_thermal_engine Rust daemon
+#   - CPU cpufreq policy control (scaling_min/max_freq, scaling_governor)
+#
+# Core-type rules only — vendor-defined types (sysfs_migt, proc_walt,
+# vendor_sysfs_kgsl, …) are granted in sepolicy/vendor/gamespace_app.te
+# because vendor types are not visible to system_ext policy at build time.
+
+# IPC with mi_thermal_engine: persist.sys.mithermal.* (mithermal_prop)
+set_prop(system_app, mithermal_prop)
+
+# Video toolbox property IPC (persist.sys.videobox.*)
+set_prop(system_app, videobox_prop)
+
+# GameSpace dynamic properties IPC (persist.sys.gamespace.*)
+set_prop(system_app, gamespace_prop)
+
+
+# /sys/class/thermal/thermal_message/*, /sys/class/thermal/thermal_zone*/temp
+allow system_app sysfs_thermal:dir r_dir_perms;
+allow system_app sysfs_thermal:file rw_file_perms;
+
+# /sys/devices/system/cpu/cpufreq/policy{0,2,5,7}/scaling_{min,max}_freq + governor
+allow system_app sysfs_devices_system_cpu:dir r_dir_perms;
+allow system_app sysfs_devices_system_cpu:file rw_file_perms;
+
+# Allow system_app (GameSpace) to read global CPU stats for ProcessCpuSampler
+# /proc/stat — global CPU tick counters (labeled proc_stat, safe for all domains)
+allow system_app proc_stat:file r_file_perms;
+# /proc/loadavg — system load averages (labeled proc_loadavg)
+allow system_app proc_loadavg:file r_file_perms;
+# /proc/uptime — system uptime (labeled proc_uptime)
+allow system_app proc_uptime:file r_file_perms;
+
+# Allow system_app to read proc_pid_max for top binary
+allow system_app proc_pid_max:file r_file_perms;
+
+# Suppress non-fatal SELinux audit logs from top binary scanning process trees
+dontaudit system_app domain:file r_file_perms;
+dontaudit system_app domain:dir r_dir_perms;
+
+
